@@ -64,7 +64,7 @@ MongoDB (Beanie ODM)
 
 - Python 3.14+
 - MongoDB running locally (or set `MONGO_URI`)
-- A [Gemini API key](https://aistudio.google.com/app/apikey)
+- An API key for your chosen LLM provider (see [LLM providers](#llm-providers))
 - [`uv`](https://docs.astral.sh/uv/)
 
 ### Install
@@ -86,16 +86,15 @@ cp .env.example .env
 Open `.env` and fill in your values:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key
+# LLM — required (see LLM providers section for other options)
+LLM_API_KEY=your_api_key_here
+LLM_MODEL=gemini/gemini-3.0-flash-preview
 
-# Optional
+# MongoDB — optional, defaults shown
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=signals
 
-# Optional — URL discovery via Brave Search
-BRAVE_SEARCH_API_KEY=your_brave_key
-
-# Optional — LLM observability via Langfuse
+# Langfuse — optional, enables LLM tracing
 LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
@@ -145,62 +144,35 @@ When triggered, alerts appear in `/app/alerts` and (if configured) are sent via 
 
 ## LLM providers
 
-Signals uses [LiteLLM](https://docs.litellm.ai) as a gateway, so you can use any supported provider without changing any business logic. Two things need to match: the **model string** in `src/services/tracing.py` and the **API key** in `.env`.
+Signals uses [LiteLLM](https://docs.litellm.ai) as a gateway — switch providers with two lines in `.env`, no code changes needed.
 
-### How to switch
+### Configuration
 
-**1. Set the API key in `.env`**
-
-Each provider reads its key from a specific environment variable:
-
-| Provider | `.env` variable | Get a key |
-|----------|----------------|-----------|
-| Google Gemini *(default)* | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
-| OpenAI | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/api-keys) |
-| Anthropic | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
-| Mistral | `MISTRAL_API_KEY` | [console.mistral.ai](https://console.mistral.ai/) |
-| Groq | `GROQ_API_KEY` | [console.groq.com](https://console.groq.com/) |
-
-**2. Update the model string in `src/services/tracing.py`**
-
-Change the `model` default in both `gemini_vision` and `gemini_text`:
-
-```python
-# gemini_vision — used to read page screenshots (must support vision)
-async def gemini_vision(..., model: str = "openai/gpt-4o") -> str:
-
-# gemini_text — used for the chat agent and signal spec parsing
-async def gemini_text(..., model: str = "openai/gpt-4o") -> str:
+```env
+LLM_API_KEY=your_api_key_here
+LLM_MODEL=gemini/gemini-3.0-flash-preview
 ```
 
-LiteLLM model strings follow the format `provider/model-name`. Examples:
+`LLM_MODEL` follows LiteLLM's `provider/model-name` format. Supported options:
 
-| Provider | Model string | Vision |
-|----------|-------------|--------|
-| Google Gemini | `gemini/gemini-3.0-flash-preview` *(default)* | yes |
-| OpenAI | `openai/gpt-4o` | yes |
-| OpenAI | `openai/gpt-4o-mini` | yes |
-| Anthropic | `anthropic/claude-opus-4-6` | yes |
-| Anthropic | `anthropic/claude-sonnet-4-6` | yes |
-| Mistral | `mistral/mistral-small-latest` | no |
-| Groq | `groq/llama-3.3-70b-versatile` | no |
+| Provider | `LLM_MODEL` value | Vision | Get a key |
+|----------|-------------------|--------|-----------|
+| Google Gemini *(default)* | `gemini/gemini-3.0-flash-preview` | yes | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
+| OpenAI | `openai/gpt-4o` | yes | [platform.openai.com](https://platform.openai.com/api-keys) |
+| OpenAI | `openai/gpt-4o-mini` | yes | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Anthropic | `anthropic/claude-opus-4-6` | yes | [console.anthropic.com](https://console.anthropic.com/) |
+| Anthropic | `anthropic/claude-sonnet-4-6` | yes | [console.anthropic.com](https://console.anthropic.com/) |
+| Mistral | `mistral/mistral-small-latest` | no | [console.mistral.ai](https://console.mistral.ai/) |
+| Groq | `groq/llama-3.3-70b-versatile` | no | [console.groq.com](https://console.groq.com/) |
 
-> **Vision is required.** Value extraction works by sending a page screenshot to the LLM. Providers or models marked *no* above can still be used for the chat agent (`gemini_text`) but not for extraction (`gemini_vision`).
+> **Vision support is required.** Value extraction works by sending a page screenshot to the LLM. Models without vision support cannot be used.
 
 ### Example: switching to OpenAI
 
-`.env`:
 ```env
-OPENAI_API_KEY=sk-...
+LLM_API_KEY=sk-...
+LLM_MODEL=openai/gpt-4o
 ```
-
-`src/services/tracing.py`:
-```python
-async def gemini_vision(..., model: str = "openai/gpt-4o") -> str:
-async def gemini_text(...,  model: str = "openai/gpt-4o") -> str:
-```
-
-No other changes needed.
 
 ---
 

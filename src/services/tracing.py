@@ -148,12 +148,13 @@ def _log_generation(
 # LiteLLM call wrappers — each one logs a Langfuse generation
 # ---------------------------------------------------------------------------
 
-async def gemini_vision(name: str, image: bytes, prompt: str, model: str = "gemini/gemini-3.0-flash-preview") -> str:
+async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
+    model = settings.llm_model
     start = _now()
     image_b64 = base64.b64encode(image).decode()
     response = await litellm.acompletion(
         model=model,
-        api_key=settings.gemini_api_key,
+        api_key=settings.llm_api_key,
         messages=[{
             "role": "user",
             "content": [
@@ -167,11 +168,12 @@ async def gemini_vision(name: str, image: bytes, prompt: str, model: str = "gemi
     return text
 
 
-async def gemini_text(name: str, prompt: str, model: str = "gemini/gemini-3.0-flash-preview") -> str:
+async def gemini_text(name: str, prompt: str) -> str:
+    model = settings.llm_model
     start = _now()
     response = await litellm.acompletion(
         model=model,
-        api_key=settings.gemini_api_key,
+        api_key=settings.llm_api_key,
         messages=[{"role": "user", "content": prompt}],
     )
     text = response.choices[0].message.content

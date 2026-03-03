@@ -17,5 +17,5 @@ def _load_dotenv() -> None:
 
 
 _load_dotenv()
-# Unit tests that mock Gemini still need a non-empty key to pass pydantic validation
-os.environ.setdefault("GEMINI_API_KEY", "test-key-for-testing")
+# Unit tests that mock the LLM still need a non-empty key to pass pydantic validation
+os.environ.setdefault("LLM_API_KEY", "test-key-for-testing")
