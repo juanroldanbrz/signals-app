@@ -39,6 +39,7 @@ logs/
 # Dev artifacts
 .playwright-mcp/
 signal-detail-final.png
+Screenshot*.png
 
 # IDEs
 .idea/
