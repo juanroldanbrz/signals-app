@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Config — Signals{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-8">
+  <h1 class="text-2xl font-bold text-white tracking-wider">CONFIG</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left column -->
+  <div class="space-y-4">
+
+    <!-- Telegram -->
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">TELEGRAM ALERTS</h2>
+      <form method="POST" action="/app/config/telegram">
+        <label class="block text-xs text-gray-600 font-mono mb-1">BOT TOKEN</label>
+        <input name="bot_token" type="password" value="{{ config.telegram_bot_token }}"
+          placeholder="123456:ABC-DEF..."
+          class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-3" />
+        <label class="block text-xs text-gray-600 font-mono mb-1">CHAT ID</label>
+        <input name="chat_id" value="{{ config.telegram_chat_id }}"
+          placeholder="-100123456789"
+          class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4" />
+        <button type="submit"
+          class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
+          SAVE
+        </button>
+      </form>
+    </div>
+
+    <!-- Scheduler health -->
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">SCHEDULER HEALTH</h2>
+      <div class="space-y-2 text-xs font-mono">
+        <div class="flex justify-between">
+          <span class="text-gray-600">LAST RUN</span>
+          <span class="text-gray-300">{{ last_catch_up_at | strftime('%H:%M:%S') if last_catch_up_at else '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">ACTIVE</span>
+          <span class="text-neon-green">{{ active_count }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-600">PAUSED</span>
+          <span class="text-yellow-400">{{ paused_count }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: Event log -->
+  <div class="lg:col-span-2">
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">EVENT LOG</h2>
+      {% if not events %}
+      <p class="text-gray-700 font-mono text-sm text-center py-8">No events yet</p>
+      {% else %}
+      <div class="space-y-1 max-h-[600px] overflow-y-auto">
+        {% for event in events %}
+        <div class="flex items-center gap-3 p-2 rounded text-xs font-mono
+          {% if event.status == 'error' %}border border-yellow-500/20 bg-yellow-500/5
+          {% elif event.alert_triggered %}border border-red-500/20 bg-red-500/5
+          {% else %}border border-dark-border bg-dark-bg/30{% endif %}">
+          <span class="text-gray-700 w-32 flex-shrink-0">{{ event.ran_at | strftime('%m/%d %H:%M:%S') }}</span>
+          <span class="text-gray-400 flex-1 truncate">{{ event.signal_name }}</span>
+          <span class="{% if event.value is not none %}text-neon-blue{% else %}text-gray-600{% endif %} w-16 text-right">
+            {{ "%.2f" | format(event.value) if event.value is not none else '—' }}
+          </span>
+          {% if event.alert_triggered %}
+          <span class="text-red-400 w-12 text-right">ALERT</span>
+          {% elif event.status == 'error' %}
+          <span class="text-yellow-400 w-12 text-right">ERROR</span>
+          {% else %}
+          <span class="text-gray-700 w-12 text-right">OK</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

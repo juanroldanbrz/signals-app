@@ -1,0 +1,81 @@
+{% set status_colors = {'active': 'neon-green', 'paused': 'yellow-400', 'error': 'red-400'} %}
+{% set sc = status_colors.get(signal.status.value, 'gray-400') %}
+
+<div id="signal-{{ signal.id }}"
+     {% if running %}hx-get="/signals/{{ signal.id }}/card" hx-trigger="load delay:5s" hx-swap="outerHTML" hx-target="#signal-{{ signal.id }}"{% endif %}
+     class="p-5 rounded-lg border bg-dark-card transition-all hover:border-neon-green/20
+            {% if signal.alert_triggered %}border-red-500/40{% else %}border-dark-border{% endif %}">
+
+  <div class="flex items-start justify-between mb-3">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs font-mono text-{{ sc }} pulse-dot">{{ signal.status.value | upper }}</span>
+        {% if signal.alert_triggered %}
+        <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-mono">ALERT</span>
+        {% endif %}
+      </div>
+      <h3 class="font-bold text-white text-sm">{{ signal.name }}</h3>
+    </div>
+    <a href="/app/signals/{{ signal.id }}" class="text-gray-600 hover:text-neon-blue transition-colors text-xs">VIEW →</a>
+  </div>
+
+  <p class="text-gray-500 text-xs font-mono mb-4 leading-relaxed border-l-2 border-dark-border pl-3">
+    {{ signal.source_extraction_query[:80] }}{% if signal.source_extraction_query | length > 80 %}...{% endif %}
+  </p>
+
+  <div class="flex items-end gap-1 mb-4">
+    {% if signal.last_value is not none %}
+      {% if signal.chart_type == 'flag' %}
+      <span class="text-2xl font-bold {% if signal.last_value == 1.0 %}text-neon-green{% else %}text-red-400{% endif %}">
+        {% if signal.last_value == 1.0 %}✓ TRUE{% else %}✗ FALSE{% endif %}
+      </span>
+      {% else %}
+      <span class="text-2xl font-bold text-neon-blue">{{ "%.2f" | format(signal.last_value) }}</span>
+      {% endif %}
+    {% else %}
+    <span class="text-gray-600 text-sm font-mono">— no data yet —</span>
+    {% endif %}
+  </div>
+
+  <div class="flex items-center justify-between text-xs text-gray-600 font-mono mb-4">
+    <span>{% if signal.last_run_at %}checked {{ signal.last_run_at | strftime('%H:%M') }}{% else %}not run yet{% endif %}</span>
+    <span>every {{ signal.interval_minutes // 60 }}h</span>
+  </div>
+
+  <div class="flex items-center gap-2 border-t border-dark-border pt-3">
+    <button
+      hx-post="/signals/{{ signal.id }}/toggle-alert"
+      hx-target="#signal-{{ signal.id }}"
+      hx-swap="outerHTML"
+      class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono transition-all
+             {% if signal.alert_enabled %}text-neon-green bg-neon-green/5 border border-neon-green/20 hover:bg-neon-green/10{% else %}text-gray-600 border border-dark-border hover:border-gray-500{% endif %}">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+      {% if signal.alert_enabled %}ALERTS ON{% else %}ALERTS OFF{% endif %}
+    </button>
+
+    {% if running %}
+    <button disabled
+      class="px-2 py-1 rounded text-xs font-mono text-neon-green border border-neon-green/30 animate-pulse cursor-default">
+      RUNNING...
+    </button>
+    {% else %}
+    <button
+      hx-post="/signals/{{ signal.id }}/run-now"
+      hx-target="#signal-{{ signal.id }}"
+      hx-swap="outerHTML"
+      class="px-2 py-1 rounded text-xs font-mono text-gray-500 border border-dark-border hover:border-neon-blue/30 hover:text-neon-blue transition-all">
+      RUN NOW
+    </button>
+    {% endif %}
+
+    <form method="POST" action="/signals/{{ signal.id }}/delete" class="ml-auto"
+          onsubmit="return confirm('Delete this signal?')">
+      <button type="submit"
+        class="px-2 py-1 rounded text-xs font-mono text-gray-700 border border-dark-border hover:border-red-500/30 hover:text-red-400 transition-all">
+        DEL
+      </button>
+    </form>
+  </div>
+</div>

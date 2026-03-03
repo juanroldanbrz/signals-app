@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ signal.name }} — Signals{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <a href="/app" class="text-gray-600 hover:text-neon-green text-xs font-mono transition-colors">← DASHBOARD</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left: Signal config -->
+  <div class="lg:col-span-1 space-y-4">
+
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-mono
+          {% if signal.status.value == 'active' %}text-neon-green{% elif signal.status.value == 'paused' %}text-yellow-400{% else %}text-red-400{% endif %}
+          pulse-dot">{{ signal.status.value | upper }}</span>
+        {% if signal.alert_triggered %}
+        <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">ALERT TRIGGERED</span>
+        {% endif %}
+      </div>
+      <h1 class="text-xl font-bold text-white mb-1">{{ signal.name }}</h1>
+      {% if signal.last_value is not none %}
+      <div class="flex items-end gap-1 mt-4">
+        {% if signal.chart_type == 'flag' %}
+        <span class="text-4xl font-bold {% if signal.last_value == 1.0 %}text-neon-green{% else %}text-red-400{% endif %}">
+          {% if signal.last_value == 1.0 %}✓ TRUE{% else %}✗ FALSE{% endif %}
+        </span>
+        {% else %}
+        <span class="text-4xl font-bold text-neon-blue">{{ "%.2f" | format(signal.last_value) }}</span>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="text-gray-600 text-sm font-mono mt-4">No data yet</p>
+      {% endif %}
+      {% if signal.source_url %}
+      <p class="text-gray-700 text-xs font-mono mt-1">SOURCE: <a href="{{ signal.source_url }}" target="_blank" class="text-neon-blue hover:underline">{{ signal.source_url }}</a></p>
+      {% endif %}
+    </div>
+
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">EDIT SIGNAL</h2>
+      {% if error %}
+      <div class="mb-3 p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-xs font-mono">⚠ {{ error }}</div>
+      {% endif %}
+      <form method="POST" action="/signals/{{ signal.id }}/update">
+        <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
+        <input name="name" value="{{ signal.name }}" required
+          class="w-full bg-dark-bg border border-dark-border rounded p-3 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4" />
+
+        <label class="block text-xs text-gray-600 font-mono mb-1">WHAT TO EXTRACT</label>
+        <textarea name="source_extraction_query" rows="2"
+          class="w-full bg-dark-bg border border-dark-border rounded p-3 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none mb-4">{{ signal.source_extraction_query }}</textarea>
+
+        <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
+        <select name="interval_minutes"
+          class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4">
+          {% for hours in [1, 2, 6, 12, 24] %}
+          <option value="{{ hours * 60 }}" {% if signal.interval_minutes == hours * 60 %}selected{% endif %}>{{ hours }}h</option>
+          {% endfor %}
+        </select>
+
+        <button type="submit" class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">SAVE</button>
+      </form>
+    </div>
+
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-3">ALERTS</h2>
+
+      <form method="POST" action="/signals/{{ signal.id }}/toggle-alert-page" class="mb-4">
+        <button type="submit"
+          class="w-full py-2 rounded text-xs font-mono border transition-all
+                 {% if signal.alert_enabled %}bg-neon-green/5 border-neon-green/20 text-neon-green hover:bg-neon-green/10{% else %}border-dark-border text-gray-600 hover:border-gray-500{% endif %}">
+          {% if signal.alert_enabled %}ALERTS ENABLED — CLICK TO DISABLE{% else %}ALERTS DISABLED — CLICK TO ENABLE{% endif %}
+        </button>
+      </form>
+
+      <form method="POST" action="/signals/{{ signal.id }}/alert-config">
+        <label class="block text-xs text-gray-600 font-mono mb-1">CONDITION</label>
+        <select name="condition_type" id="conditionType"
+          onchange="document.getElementById('thresholdRow').style.display = (this.value === 'change' || this.value === '') ? 'none' : 'block'"
+          class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-3">
+          <option value="" {% if not signal.condition_type %}selected{% endif %}>— none —</option>
+          <option value="above" {% if signal.condition_type == 'above' %}selected{% endif %}>above threshold</option>
+          <option value="below" {% if signal.condition_type == 'below' %}selected{% endif %}>below threshold</option>
+          <option value="equals" {% if signal.condition_type == 'equals' %}selected{% endif %}>equals value</option>
+          <option value="change" {% if signal.condition_type == 'change' %}selected{% endif %}>any change</option>
+        </select>
+
+        <div id="thresholdRow" style="display: {% if signal.condition_type and signal.condition_type != 'change' %}block{% else %}none{% endif %}">
+          {% if signal.chart_type == 'flag' %}
+          <label class="block text-xs text-gray-600 font-mono mb-1">TARGET VALUE</label>
+          <select name="condition_threshold"
+            class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-3">
+            <option value="1.0" {% if signal.condition_threshold == 1.0 %}selected{% endif %}>TRUE (1.0)</option>
+            <option value="0.0" {% if signal.condition_threshold == 0.0 %}selected{% endif %}>FALSE (0.0)</option>
+          </select>
+          {% else %}
+          <label class="block text-xs text-gray-600 font-mono mb-1">THRESHOLD</label>
+          <input name="condition_threshold" type="number" step="any"
+            value="{{ signal.condition_threshold if signal.condition_threshold is not none else '' }}"
+            class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-3" />
+          {% endif %}
+        </div>
+
+        <button type="submit"
+          class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
+          SAVE CONDITION
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: Chart + History -->
+  <div class="lg:col-span-2 space-y-6">
+
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">HISTORICAL VALUES</h2>
+      {% set chart_runs = runs | selectattr('value', 'ne', none) | list %}
+      {% if chart_runs and signal.chart_type != 'flag' %}
+      <canvas id="signalChart" height="120"></canvas>
+      {% else %}
+      <div class="text-center py-12 text-gray-700 font-mono text-sm">No data points yet</div>
+      {% endif %}
+    </div>
+
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">RUN HISTORY</h2>
+      {% if not runs %}
+      <p class="text-gray-700 font-mono text-sm text-center py-8">No runs yet</p>
+      {% else %}
+      <div class="space-y-2 max-h-80 overflow-y-auto">
+        {% for run in runs %}
+        <div class="flex items-start gap-3 p-3 rounded border
+          {% if run.alert_triggered %}border-red-500/20 bg-red-500/5{% elif run.status.value == 'error' %}border-yellow-500/20 bg-yellow-500/5{% else %}border-dark-border bg-dark-bg/50{% endif %}">
+          <div class="flex-shrink-0 w-16 text-right">
+            {% if run.value is not none %}
+            <span class="text-neon-blue font-bold text-sm">{{ "%.2f" | format(run.value) }}</span>
+            {% else %}<span class="text-gray-600 text-sm">—</span>{% endif %}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-gray-600 text-xs font-mono truncate">{{ run.raw_result[:100] if run.raw_result else '—' }}</p>
+          </div>
+          <div class="flex-shrink-0 text-right">
+            <span class="text-gray-700 text-xs font-mono">{{ run.ran_at | strftime('%m/%d %H:%M') }}</span>
+            {% if run.alert_triggered %}<div class="text-red-400 text-xs">ALERT</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% set chart_runs = runs | selectattr('value', 'ne', none) | list %}
+{% if chart_runs and signal.chart_type != 'flag' %}
+<script>
+const ctx = document.getElementById('signalChart').getContext('2d');
+const labels = [{% for run in chart_runs | reverse %}"{{ run.ran_at | strftime('%m/%d %H:%M') }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const data = [{% for run in chart_runs | reverse %}{{ run.value }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+new Chart(ctx, {
+  type: '{{ signal.chart_type }}',
+  data: {
+    labels,
+    datasets: [{
+      label: {{ signal.name | tojson }},
+      data,
+      borderColor: '#00cfff',
+      backgroundColor: 'rgba(0, 207, 255, 0.05)',
+      borderWidth: 2,
+      pointBackgroundColor: '#00cfff',
+      pointRadius: 3,
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#12121a',
+        borderColor: '#1e1e2e',
+        borderWidth: 1,
+        titleColor: '#9ca3af',
+        bodyColor: '#00cfff',
+        titleFont: { family: 'JetBrains Mono', size: 11 },
+        bodyFont: { family: 'JetBrains Mono', size: 13, weight: 'bold' },
+      }
+    },
+    scales: {
+      x: { grid: { color: '#1e1e2e' }, ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 } } },
+      y: { grid: { color: '#1e1e2e' }, ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 } } }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

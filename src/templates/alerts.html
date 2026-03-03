@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Alerts — Signals{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h1 class="text-2xl font-bold text-white tracking-wider">ALERTS</h1>
+    <p class="text-gray-600 text-sm font-mono mt-1">{{ alert_runs | length }} triggered</p>
+  </div>
+</div>
+
+{% if not alert_runs %}
+<div class="text-center py-24 border border-dashed border-dark-border rounded-lg">
+  <p class="text-gray-600 font-mono text-sm">No alerts triggered yet.</p>
+</div>
+{% else %}
+<div class="rounded-lg border border-dark-border bg-dark-card overflow-hidden">
+  <div class="divide-y divide-dark-border">
+    {% for run in alert_runs %}
+    {% set signal = signals.get(run.signal_id) %}
+    <div class="flex items-center gap-4 px-5 py-3 hover:bg-dark-border/20 transition-colors">
+      <div class="flex-shrink-0">
+        <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-mono">ALERT</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        {% if signal %}
+        <a href="/app/signals/{{ signal.id }}" class="text-sm text-white font-mono hover:text-neon-blue transition-colors">
+          {{ signal.name }}
+        </a>
+        {% else %}
+        <span class="text-sm text-gray-500 font-mono">deleted signal</span>
+        {% endif %}
+        {% if run.value is not none %}
+        <span class="text-neon-blue font-bold ml-3">{{ "%.2f" | format(run.value) }}</span>
+        {% endif %}
+      </div>
+      <div class="text-gray-600 text-xs font-mono flex-shrink-0">
+        {{ run.ran_at | strftime('%Y-%m-%d %H:%M') }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
