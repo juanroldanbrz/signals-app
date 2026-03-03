@@ -13,13 +13,6 @@ If you added something to make X work and X has been replaced, remove the old th
 
 ---
 
-## Git Commits
-
-Every commit must use the project author identity:
-```
-git commit --author "Juan Roldan <juan.roldan@bluggie.com>" -m "..."
-```
-
 ## Stack
 
 - FastAPI + Jinja2 + HTMX (server-rendered, no JS framework)

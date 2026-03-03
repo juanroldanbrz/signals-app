@@ -1,87 +1,76 @@
+![Signals](img/landing.png)
+
 # Signals
 
-> Monitor any value on any website — prices, stats, rankings — and get alerted when conditions are met.
+Monitor any value on any website — prices, stats, rankings — and get alerted when conditions are met.
 
-```
-╔═══════════════════════════════════════════════════════╗
-║  SIGNALS  ▸  monitor anything on the web              ║
-╠═══════════════════════════════════════════════════════╣
-║  BTC / USD          $94,231.00   ▲  above $90k  🚨   ║
-║  PS5 at Amazon      $449.99      ✓  below $500        ║
-║  RTX 5090 stock     OUT OF STOCK ✓  any change        ║
-╚═══════════════════════════════════════════════════════╝
-```
+Write a prompt in plain English. Signals watches it for you and sends a Telegram message the moment your condition trips.
 
-Point Signals at any public URL and describe what to track in plain English. A browser agent navigates the page, a vision LLM reads the value, and you get a Telegram message (or an in-app alert) the moment your condition trips.
+![Signal detail](img/btc.png)
 
 ---
 
 ## How it works
 
-```
-You: "track the BTC price on CoinGecko"
-        │
-        ▼
-  ┌─────────────┐     screenshot      ┌──────────────┐
-  │  Playwright │ ──────────────────► │  Gemini LLM  │
-  │  (headless) │                     │  (vision)    │
-  └─────────────┘                     └──────┬───────┘
-        ▲                                    │ extracted value
-        │ every N hours                      ▼
-  ┌─────────────┐              ┌─────────────────────────┐
-  │  Scheduler  │              │  Condition evaluator    │
-  │  (catch-up) │              │  above / below / equals │
-  └─────────────┘              └──────────┬──────────────┘
-                                          │ triggered?
-                               ┌──────────▼──────────────┐
-                               │  Telegram  +  In-app    │
-                               │  alert                  │
-                               └─────────────────────────┘
-```
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Natural language setup** | Describe what to track; the agent finds the URL and the right element |
-| **Vision-powered extraction** | Gemini reads a page screenshot — works on SPAs, lazy-loaded content, any layout |
-| **Flexible conditions** | Alert when a value goes `above`, `below`, `equals`, or on `any change` |
-| **Restart-safe scheduler** | A single catch-up poller runs every 10 minutes; `next_run_at` is persisted in the DB so no runs are lost across restarts |
-| **Telegram alerts** | Instant message when a condition triggers |
-| **In-app alert feed** | `/app/alerts` — full history of every triggered run |
-| **Config page** | `/app/config` — Telegram credentials, scheduler health, live event log |
-| **LiteLLM gateway** | Swap the underlying LLM (GPT-4o, Claude, Gemini…) with one line |
+1. **Describe** what you want to track ("BTC price on CoinGecko", "PS5 price on Amazon")
+2. The agent finds the right URL and figures out how to extract the value
+3. Playwright opens the page and takes a screenshot on a schedule
+4. Gemini reads the screenshot and extracts the number
+5. If the condition is met → Telegram alert + in-app notification
 
 ---
 
 ## Stack
 
+| Layer | Technology |
+|-------|-----------|
+| Web framework | FastAPI + Jinja2 + HTMX (server-rendered, no JS framework) |
+| Database | MongoDB via Beanie (async ODM) |
+| LLM | LiteLLM → Gemini 3.0 Flash (vision + text) |
+| Browser | Playwright headless Chromium |
+| Scheduler | APScheduler — single catch-up poller every 10 min |
+| Package manager | `uv` |
+
+### Architecture
+
 ```
-FastAPI  ▸  Jinja2  ▸  HTMX        server-rendered, zero JS framework
-MongoDB  ▸  Beanie                  async ODM
-LiteLLM  ▸  Gemini 3.0 Flash        vision + text LLM calls
-Playwright  ▸  Chromium             headless browser for screenshots
-APScheduler                         single catch-up poller
-uv                                  dependency management
+Browser (HTMX)
+    │
+    ▼
+FastAPI routes
+    │
+    ├── /signals/chat     ← LLM chat agent (signal creation)
+    ├── /signals/run      ← manual trigger
+    ├── /app/alerts       ← triggered alert history
+    └── /app/config       ← Telegram credentials + event log
+    │
+    ├── services/executor.py    ← Playwright screenshot → Gemini vision → value
+    ├── services/scheduler.py   ← catch-up poller + condition evaluation
+    ├── services/notify.py      ← Telegram delivery
+    └── services/tracing.py     ← LiteLLM wrappers + Langfuse observability
+    │
+MongoDB (Beanie ODM)
+    ├── Signal            ← url, query, schedule, condition, next_run_at
+    ├── SignalRun         ← per-run record (value, status, timestamp)
+    ├── AppConfig         ← Telegram credentials (singleton)
+    └── AppEvent          ← scheduler event log
 ```
 
 ---
 
-## Quickstart
+## Local setup
 
 ### Prerequisites
 
 - Python 3.14+
-- MongoDB (local or remote)
+- MongoDB running locally (or set `MONGO_URI`)
 - A [Gemini API key](https://aistudio.google.com/app/apikey)
-- [`uv`](https://docs.astral.sh/uv/) — fast Python package manager
+- [`uv`](https://docs.astral.sh/uv/)
 
 ### Install
 
 ```bash
-git clone https://github.com/bluggie/signals-app.git
+git clone https://github.com/juanroldanbrz/signals-app.git
 cd signals-app
 
 uv sync
@@ -91,24 +80,28 @@ uv run playwright install chromium
 ### Configure
 
 ```bash
-cp .env.example .env   # then fill in your keys
+cp .env.example .env
 ```
 
+Open `.env` and fill in your values:
+
 ```env
-# Required
 GEMINI_API_KEY=your_gemini_api_key
 
-# Optional (defaults shown)
+# Optional
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=signals
 
-# Optional — Langfuse observability
+# Optional — URL discovery via Brave Search
+BRAVE_SEARCH_API_KEY=your_brave_key
+
+# Optional — LLM observability via Langfuse
 LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
 ```
 
-Telegram credentials are configured in-app at `/app/config` — no restart needed, stored in the DB.
+Telegram credentials are configured inside the app at `/app/config` — no restart needed.
 
 ### Run
 
@@ -116,95 +109,63 @@ Telegram credentials are configured in-app at `/app/config` — no restart neede
 uv run uvicorn src.main:app --reload
 ```
 
-Open [http://localhost:8000/app](http://localhost:8000/app).
+Open [http://localhost:8000](http://localhost:8000).
 
 ---
 
-## Usage
+## Deploy with Docker
 
-### Create a signal
+```bash
+docker compose up -d
+```
 
-1. Click **+ NEW SIGNAL** on the dashboard
-2. Describe what to track in the chat:
-   - *"BTC price on CoinGecko"*
-   - *"PS5 price on Amazon"*
-   - *"RTX 5090 stock status on Best Buy"*
-3. The agent discovers the URL and extraction query
-4. Confirm — the signal is scheduled immediately
+The `docker-compose.yml` starts both the app and MongoDB. Make sure your `.env` file is present — it is mounted automatically.
 
-### Set an alert
+To run just the app against an existing MongoDB:
 
-On the signal detail page → **ALERTS** panel:
+```bash
+docker build -t signals-app .
+docker run -p 8000:8000 --env-file .env signals-app
+```
+
+---
+
+## Alerts
+
+On any signal's detail page → **ALERTS** panel:
 
 1. Enable alerts with the toggle
 2. Choose a condition: `above`, `below`, `equals`, or `any change`
-3. Set the threshold (not required for `any change`)
-4. Click **SAVE CONDITION** — the next run evaluates it
+3. Set the threshold (not needed for `any change`)
+4. Save — the next scheduled run evaluates the condition
 
-Triggered alerts appear in the **Alerts** nav page and, if Telegram is configured, arrive as messages.
-
-### Configure Telegram
-
-Go to `/app/config`:
-
-1. Create a bot with [@BotFather](https://t.me/BotFather) and copy the token
-2. Find your chat ID (send a message to the bot, then check `getUpdates`)
-3. Paste both into the Telegram section and save
+When triggered, alerts appear in `/app/alerts` and (if configured) are sent via Telegram.
 
 ---
 
 ## Switching the LLM
 
-LiteLLM supports 100+ providers. Change the `model` default in `src/services/tracing.py` and add the corresponding key to `.env`:
+LiteLLM supports 100+ providers. Change the `model` default in `src/services/tracing.py` and add the matching API key to `.env`:
 
-| Model | Key |
-|-------|-----|
-| `gemini/gemini-3.0-flash-preview` | `GEMINI_API_KEY` (default) |
-| `openai/gpt-4o` | `OPENAI_API_KEY` |
-| `anthropic/claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+```python
+# src/services/tracing.py
+async def gemini_vision(..., model: str = "openai/gpt-4o") -> str:
+```
+
+```env
+OPENAI_API_KEY=sk-...
+```
 
 ---
 
-## Running tests
+## Tests
 
 ```bash
-# Unit tests (default)
+# Unit tests
 uv run pytest tests/ -v
 
-# Integration tests — live network required
+# Integration tests (live network)
 uv run pytest tests/ -m integration -v
-```
-
----
-
-## Project structure
-
-```
-signals-app/
-├── src/
-│   ├── main.py                  FastAPI app + lifespan
-│   ├── config.py                Settings from .env
-│   ├── db.py                    Beanie init
-│   ├── models/
-│   │   ├── signal.py            Signal document (url, condition, schedule)
-│   │   ├── signal_run.py        Per-run record
-│   │   ├── app_config.py        Singleton config (Telegram creds)
-│   │   └── app_event.py         Scheduler event log
-│   ├── services/
-│   │   ├── executor.py          Run a signal: Playwright → Gemini → result
-│   │   ├── scheduler.py         Catch-up poller + condition evaluation
-│   │   ├── notify.py            Telegram delivery
-│   │   ├── tracing.py           LiteLLM wrappers + Langfuse logging
-│   │   └── llm.py               Chat agent + signal spec parsing
-│   ├── routes/
-│   │   ├── signals.py           Signal CRUD + chat + run-now
-│   │   ├── alerts.py            Alert feed
-│   │   ├── config.py            App config page
-│   │   └── dashboard.py         Main dashboard
-│   └── templates/               Jinja2 + HTMX templates
-├── tests/
-├── pyproject.toml
-└── README.md
 ```
 
 ---

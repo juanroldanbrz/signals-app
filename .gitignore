@@ -36,6 +36,10 @@ logs/
 .AppleDouble
 .LSOverride
 
+# Dev artifacts
+.playwright-mcp/
+signal-detail-final.png
+
 # IDEs
 .idea/
 .vscode/
