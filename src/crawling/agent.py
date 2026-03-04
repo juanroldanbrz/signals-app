@@ -42,8 +42,8 @@ async def _parse_from_text(
         prompt=(
             f"Text:\n{text}\n\n"
             f"Query: {query}\n"
-            f"Return ONLY the number (e.g. 67432.10), no units, no text.\n"
-            f"If the value is not present, return null."
+            f"Extract the best matching numeric value. Ignore currency symbols and units — return ONLY the bare number (e.g. 67432.10).\n"
+            f"If no numeric value is present at all, return null."
         ),
     )
     await _emit(f"Gemini text parse → {raw.strip()[:80]}", on_progress)
@@ -105,7 +105,7 @@ async def crawl(
     query: str,
     chart_type: str,
     on_progress: ProgressCallback = None,
-) -> tuple[float | None, bytes | None, str]:
+) -> tuple[float | None, bytes | None, str, str]:
     """
     Browser agent: navigate to URL, accept cookies, then locate the relevant
     element by injecting numbered overlays and asking Gemini to identify it.
@@ -113,7 +113,8 @@ async def crawl(
     Tries text extraction first (cheaper), falls back to image/vision.
     Scrolls up to 3 viewport heights if the element is not found at first.
 
-    Returns (value, element_screenshot_bytes, raw_text_or_error).
+    Returns (value, element_screenshot_bytes, raw_text_or_error, extraction_note).
+    extraction_note is Gemini's one-line explanation of what it found and any caveats.
     """
     try:
         async with async_playwright() as p:
@@ -143,13 +144,15 @@ async def crawl(
                 )
 
                 try:
-                    element_id = await find_element_id(page, query, on_progress=on_progress)
+                    result = await find_element_id(page, query, on_progress=on_progress)
 
-                    if element_id is None:
+                    if result is None:
                         if attempt < 2:
                             await _emit("Scrolling down one viewport ...", on_progress)
                             await scroll_down(page)
                         continue
+
+                    element_id, note = result
 
                     # Text extraction first — cheaper, no vision API call
                     await _emit("Extracting element text ...", on_progress)
@@ -160,7 +163,7 @@ async def crawl(
                         if value is not None:
                             await _emit(f"✓ Extracted value: {value}", on_progress)
                             screenshot = await extract_as_image(page, element_id)
-                            return value, screenshot, raw_text
+                            return value, screenshot, raw_text, note
                         await _emit("Text parse returned null — trying vision ...", on_progress)
                     else:
                         await _emit("No text in element — trying vision ...", on_progress)
@@ -173,7 +176,7 @@ async def crawl(
                         value = await _parse_from_image(screenshot, query, chart_type, on_progress)
                         if value is not None:
                             await _emit(f"✓ Extracted value: {value}", on_progress)
-                            return value, screenshot, "extracted from screenshot"
+                            return value, screenshot, "extracted from screenshot", note
 
                     await _emit("Value not found at this scroll position", on_progress)
                     if attempt < 2:
@@ -183,8 +186,8 @@ async def crawl(
                 finally:
                     await cleanup(page)
 
-            return None, None, "Could not extract value after 3 scroll attempts"
+            return None, None, "Could not extract value after 3 scroll attempts", ""
 
     except Exception as e:
         msg = str(e).split("Browser logs:")[0].strip().splitlines()[0][:200]
-        return None, None, f"Browser error: {msg}"
+        return None, None, f"Browser error: {msg}", ""

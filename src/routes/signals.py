@@ -56,7 +56,7 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
 
     async def run_crawl() -> None:
         try:
-            value, screenshot_bytes, raw = await crawl(
+            value, screenshot_bytes, raw, note = await crawl(
                 body.url, body.extraction_query, body.chart_type, on_progress=on_progress
             )
             screenshot_url = _save_screenshot(screenshot_bytes) if screenshot_bytes else None
@@ -64,9 +64,9 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
             if value is None:
                 await queue.put({"type": "done", "error": raw, "screenshot_url": screenshot_url})
             elif body.chart_type == "flag":
-                await queue.put({"type": "done", "value": value, "flag": value == 1.0, "screenshot_url": screenshot_url})
+                await queue.put({"type": "done", "value": value, "flag": value == 1.0, "screenshot_url": screenshot_url, "note": note})
             else:
-                await queue.put({"type": "done", "value": value, "screenshot_url": screenshot_url})
+                await queue.put({"type": "done", "value": value, "screenshot_url": screenshot_url, "note": note})
         except Exception as e:
             await queue.put({"type": "done", "error": f"Unexpected error: {str(e)[:200]}"})
 

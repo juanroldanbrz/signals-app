@@ -155,7 +155,7 @@ def _api_key() -> str | None:
     return settings.llm_api_key or None
 
 
-async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
+async def gemini_vision(name: str, image: bytes, prompt: str, response_format=None) -> str:
     model = settings.llm_model
     start = _now()
     image_b64 = base64.b64encode(image).decode()
@@ -171,6 +171,8 @@ async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
     )
     if (key := _api_key()) is not None:
         kwargs["api_key"] = key
+    if response_format is not None:
+        kwargs["response_format"] = response_format
     response = await litellm.acompletion(**kwargs)
     text = response.choices[0].message.content
     _log_generation(name, model, {"prompt": prompt[:1000], "image_bytes": len(image)}, text, start)

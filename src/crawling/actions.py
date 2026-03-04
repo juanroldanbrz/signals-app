@@ -1,6 +1,11 @@
-import re
+from pydantic import BaseModel
 from src.crawling.js import ACCEPT_COOKIES, CLEAN_ALL, MARK_ELEMENTS, REMOVE_OVERLAYS
 from src.services.tracing import gemini_vision
+
+
+class _ElementMatch(BaseModel):
+    element_number: str | None = None
+    note: str = ""
 
 
 async def accept_cookies(page) -> bool:
@@ -18,11 +23,11 @@ async def scroll_down(page, viewports: int = 1) -> None:
     await page.wait_for_timeout(500)
 
 
-async def find_element_id(page, query: str, on_progress=None) -> str | None:
+async def find_element_id(page, query: str, on_progress=None) -> tuple[str, str] | None:
     """
     Inject numbered overlays, take a viewport screenshot, ask Gemini which
     element contains the target. Removes visual overlays before returning.
-    Returns the data-signals-id value (e.g. "5") or None if not found.
+    Returns (data-signals-id, explanation) or None if not found.
     """
     async def emit(msg: str) -> None:
         if on_progress is not None:
@@ -45,31 +50,38 @@ async def find_element_id(page, query: str, on_progress=None) -> str | None:
     raw = await gemini_vision(
         name="find_element",
         image=marked_screenshot,
+        response_format=_ElementMatch,
         prompt=(
-            f"{query}\n"
-            f"Which numbered element in the screenshot contains this value/information?\n"
-            f"Return ONLY the element number. If none apply, return 'not found'.\n\n"
+            f"Task: {query}\n\n"
+            f"Find the numbered element that best matches this task. "
+            f"Be flexible: ignore currency differences (e.g. EUR vs USD), minor label mismatches, "
+            f"or partial matches — focus on finding the closest relevant numeric value.\n\n"
+            f"Set element_number to the number string (e.g. '5'), or null if no relevant numeric value exists.\n"
+            f"Set note to a one-line explanation of what you found and any caveats "
+            f"(e.g. 'Steam Global price shown in EUR €59.99 — currency differs from query').\n\n"
             f"Elements:\n{element_list}"
         ),
     )
-    await emit(f"Gemini response: {raw.strip()[:120]}")
 
-    normalized = raw.strip().lower()
-    if "not found" in normalized:
-        await emit("Gemini: target not found in this viewport")
+    try:
+        result = _ElementMatch.model_validate_json(raw)
+    except Exception:
+        await emit(f"Could not parse Gemini response: {raw[:80]}")
         return None
 
-    match = re.search(r"\d+", normalized)
-    if not match:
-        await emit(f"Could not parse element number from: {raw.strip()[:80]}")
+    if result.element_number is None:
+        await emit(f"Gemini: target not found — {result.note}")
         return None
 
-    element_id = match.group()
+    element_id = result.element_number
+    note = result.note[:200]
     el_info = next((e for e in elements if str(e["id"]) == element_id), None)
     if el_info:
         await emit(f"Selected #{element_id}: <{el_info['tag']}> {el_info['text'][:80]}")
+    if note:
+        await emit(f"Note: {note}")
 
-    return element_id
+    return element_id, note
 
 
 async def extract_as_image(page, element_id: str) -> bytes | None:

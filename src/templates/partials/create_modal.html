@@ -112,6 +112,9 @@
                 <a id="preview-screenshot" href="#" target="_blank" rel="noopener"
                   class="text-neon-blue underline hover:text-white transition-colors">📸 view</a>
               </div>
+              <div id="preview-note-row" class="hidden pt-1 border-t border-dark-border">
+                <p class="text-yellow-400/80 text-xs leading-relaxed" id="preview-note"></p>
+              </div>
             </div>
 
             <form id="save-form" method="POST" action="/signals"
@@ -173,6 +176,7 @@
     document.getElementById('flip-inner').style.transform = '';
     document.getElementById('dry-run-error').classList.add('hidden');
     document.getElementById('preview-screenshot-row').classList.add('hidden');
+    document.getElementById('preview-note-row').classList.add('hidden');
     document.getElementById('preview-screenshot').href = '#';
     clearConsole();
   };
@@ -267,6 +271,10 @@
     if (data.screenshot_url) {
       document.getElementById('preview-screenshot').href = data.screenshot_url;
       document.getElementById('preview-screenshot-row').classList.remove('hidden');
+    }
+    if (data.note) {
+      document.getElementById('preview-note').textContent = '⚠ ' + data.note;
+      document.getElementById('preview-note-row').classList.remove('hidden');
     }
 
     // Populate hidden save form fields
