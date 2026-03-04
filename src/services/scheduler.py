@@ -43,8 +43,9 @@ async def _run_signal_job(signal_id: str):
     from src.models.signal_run import SignalRun
     from src.models.app_config import AppConfig
     from src.models.app_event import AppEvent
+    from src.models.user import User
     from src.services.executor import run_signal
-    from src.services.notify import send_telegram_alert
+    from src.services.notify import send_email_alert, send_telegram_alert
 
     signal = await Signal.get(signal_id)
     if not signal or signal.status == SignalStatus.PAUSED:
@@ -86,14 +87,27 @@ async def _run_signal_job(signal_id: str):
             signal.status = SignalStatus.ACTIVE
 
         if alert_triggered:
+            condition = _condition_description(signal)
+            signal_url = f"https://watchsignal.app/app/signals/{signal.id}"
+
             config = await AppConfig.get_for_user(signal.user_id)
             await send_telegram_alert(
                 bot_token=config.telegram_bot_token,
                 chat_id=config.telegram_chat_id,
                 signal_name=signal.name,
                 value=value,
-                condition=_condition_description(signal),
+                condition=condition,
             )
+
+            user = await User.get(signal.user_id)
+            if user:
+                await send_email_alert(
+                    to_email=user.email,
+                    signal_name=signal.name,
+                    value=value,
+                    condition=condition,
+                    signal_url=signal_url,
+                )
 
         event_status = "error" if result["status"] == "error" else "ok"
         await AppEvent(
