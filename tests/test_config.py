@@ -3,8 +3,11 @@ from src.config import Settings
 
 def test_settings_defaults():
     s = Settings(
+        _env_file=None,
         jwt_secret="test-secret",
         mongo_uri="mongodb://localhost:27017",
+        mandatory_email_verification=False,
+        resend_api_key="",
     )
     assert s.default_interval_minutes == 60
     assert s.mongo_db == "signals"
