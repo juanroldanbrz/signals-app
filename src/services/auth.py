@@ -49,7 +49,7 @@ async def get_current_user(request: Request) -> User:
     if not user:
         return RedirectResponse("/auth/login", status_code=302)
 
-    if settings.email_verification and not user.is_verified:
+    if settings.mandatory_email_verification and not user.is_verified:
         return RedirectResponse("/auth/verify-pending", status_code=302)
 
     return user

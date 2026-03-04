@@ -10,7 +10,8 @@ def test_settings_defaults():
     assert s.mongo_db == "signals"
     assert s.llm_model == "gemini/gemini-3.0-flash-preview"
     assert s.jwt_expire_minutes == 60 * 24 * 7
-    assert s.email_verification is True
+    assert s.mandatory_email_verification is False
+    assert s.resend_api_key == ""
     assert s.vertexai_project == ""
     assert s.vertexai_location == "us-central1"
     assert s.vertexai_credentials == ""

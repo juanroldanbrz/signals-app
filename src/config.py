@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     default_interval_minutes: int = 60
     jwt_secret: str
     jwt_expire_minutes: int = 60 * 24 * 7
-    email_verification: bool = True
+    mandatory_email_verification: bool = False
+    resend_api_key: str = ""
     # Langfuse (optional — tracing disabled if not set)
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

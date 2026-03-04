@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from src.config import settings
 from src.models.user import User
 from src.services.auth import create_access_token, hash_password, verify_password
+from src.services.email import send_verification_email
 from src.templates_config import templates
 
 router = APIRouter(prefix="/auth")
@@ -26,7 +27,7 @@ async def login(request: Request, email: str = Form(...), password: str = Form(.
             status_code=401,
         )
 
-    if settings.email_verification and not user.is_verified:
+    if settings.mandatory_email_verification and not user.is_verified:
         return RedirectResponse("/auth/verify-pending", status_code=302)
 
     token = create_access_token(str(user.id))
@@ -60,12 +61,15 @@ async def register(request: Request, email: str = Form(...), password: str = For
     user = User(
         email=email,
         hashed_password=hash_password(password),
-        verify_token=verify_token,
+        is_verified=not settings.mandatory_email_verification,
+        verify_token=verify_token if settings.mandatory_email_verification else None,
     )
     await user.insert()
 
-    verify_url = f"{request.base_url}auth/verify/{verify_token}"
-    print(f"[AUTH] Email verification URL for {email}: {verify_url}")
+    if settings.mandatory_email_verification:
+        verify_url = f"{request.base_url}auth/verify/{verify_token}"
+        await send_verification_email(email, verify_url)
+        return RedirectResponse("/auth/verify-pending", status_code=302)
 
     return RedirectResponse("/auth/login", status_code=302)
 
