@@ -6,7 +6,7 @@ from src.config import settings
 async def send_verification_email(to_email: str, verify_url: str) -> None:
     resend.api_key = settings.resend_api_key
     resend.Emails.send({
-        "from": "Signals <noreply@notifications.watchsignal.app>",
+        "from": "Signals <noreply@watchsignal.app>",
         "to": [to_email],
         "subject": "Verify your Signals account",
         "html": f"""
