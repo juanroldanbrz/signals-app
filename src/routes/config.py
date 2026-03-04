@@ -36,6 +36,7 @@ async def config_page(request: Request, current_user: User = Depends(get_current
 @router.post("/app/config/telegram")
 async def save_telegram_config(
     current_user: User = Depends(get_current_user),
+    telegram_enabled: Annotated[str, Form()] = "",
     bot_token: Annotated[str, Form()] = "",
     chat_id: Annotated[str, Form()] = "",
 ):
@@ -43,7 +44,22 @@ async def save_telegram_config(
         return current_user
     from src.models.app_config import AppConfig
     config = await AppConfig.get_for_user(current_user.id)
+    config.telegram_enabled = telegram_enabled == "on"
     config.telegram_bot_token = bot_token
     config.telegram_chat_id = chat_id
+    await config.save()
+    return RedirectResponse(url="/app/config", status_code=303)
+
+
+@router.post("/app/config/email")
+async def save_email_config(
+    current_user: User = Depends(get_current_user),
+    email_enabled: Annotated[str, Form()] = "",
+):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    from src.models.app_config import AppConfig
+    config = await AppConfig.get_for_user(current_user.id)
+    config.email_enabled = email_enabled == "on"
     await config.save()
     return RedirectResponse(url="/app/config", status_code=303)

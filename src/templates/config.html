@@ -11,10 +11,29 @@
   <!-- Left column -->
   <div class="space-y-4">
 
+    <!-- Email alerts -->
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">EMAIL ALERTS</h2>
+      <form method="POST" action="/app/config/email">
+        <label class="flex items-center justify-between mb-4 cursor-pointer">
+          <span class="text-xs font-mono text-gray-400">Send alerts to <span class="text-neon-blue">{{ user.email }}</span></span>
+          <input type="checkbox" name="email_enabled" value="on" {% if config.email_enabled %}checked{% endif %}
+            onchange="this.form.submit()"
+            class="accent-neon-green w-4 h-4 cursor-pointer" />
+        </label>
+        <p class="text-xs font-mono text-gray-700">{{ "✓ Enabled" if config.email_enabled else "Disabled" }}</p>
+      </form>
+    </div>
+
     <!-- Telegram -->
     <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
       <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">TELEGRAM ALERTS</h2>
       <form method="POST" action="/app/config/telegram">
+        <label class="flex items-center justify-between mb-4 cursor-pointer">
+          <span class="text-xs font-mono text-gray-400">Enable Telegram</span>
+          <input type="checkbox" name="telegram_enabled" value="on" {% if config.telegram_enabled %}checked{% endif %}
+            class="accent-neon-green w-4 h-4 cursor-pointer" />
+        </label>
         <label class="block text-xs text-gray-600 font-mono mb-1">BOT TOKEN</label>
         <input name="bot_token" type="password" value="{{ config.telegram_bot_token }}"
           placeholder="123456:ABC-DEF..."

@@ -3,6 +3,8 @@ from beanie import Document, PydanticObjectId
 
 class AppConfig(Document):
     user_id: PydanticObjectId
+    email_enabled: bool = True
+    telegram_enabled: bool = False
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 

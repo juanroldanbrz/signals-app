@@ -91,23 +91,26 @@ async def _run_signal_job(signal_id: str):
             signal_url = f"https://watchsignal.app/app/signals/{signal.id}"
 
             config = await AppConfig.get_for_user(signal.user_id)
-            await send_telegram_alert(
-                bot_token=config.telegram_bot_token,
-                chat_id=config.telegram_chat_id,
-                signal_name=signal.name,
-                value=value,
-                condition=condition,
-            )
 
-            user = await User.get(signal.user_id)
-            if user:
-                await send_email_alert(
-                    to_email=user.email,
+            if config.telegram_enabled:
+                await send_telegram_alert(
+                    bot_token=config.telegram_bot_token,
+                    chat_id=config.telegram_chat_id,
                     signal_name=signal.name,
                     value=value,
                     condition=condition,
-                    signal_url=signal_url,
                 )
+
+            if config.email_enabled:
+                user = await User.get(signal.user_id)
+                if user:
+                    await send_email_alert(
+                        to_email=user.email,
+                        signal_name=signal.name,
+                        value=value,
+                        condition=condition,
+                        signal_url=signal_url,
+                    )
 
         event_status = "error" if result["status"] == "error" else "ok"
         await AppEvent(
