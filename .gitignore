@@ -49,3 +49,6 @@ Screenshot*.png
 
 # uv
 .uv/
+
+# Git worktrees
+.worktrees/
