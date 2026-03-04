@@ -1,7 +1,8 @@
-from beanie import Document
+from beanie import Document, PydanticObjectId
 
 
 class AppConfig(Document):
+    user_id: PydanticObjectId
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
@@ -9,9 +10,9 @@ class AppConfig(Document):
         name = "app_config"
 
     @classmethod
-    async def get_singleton(cls) -> "AppConfig":
-        config = await cls.find_one()
+    async def get_for_user(cls, user_id: PydanticObjectId) -> "AppConfig":
+        config = await cls.find_one(cls.user_id == user_id)
         if not config:
-            config = cls()
+            config = cls(user_id=user_id)
             await config.insert()
         return config

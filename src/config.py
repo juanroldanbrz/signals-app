@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "signals"
     default_interval_minutes: int = 60
+    jwt_secret: str
+    jwt_expire_minutes: int = 60 * 24 * 7
+    email_verification: bool = True
     # Langfuse (optional — tracing disabled if not set)
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

@@ -64,6 +64,7 @@ async def _run_signal_job(signal_id: str):
             )
 
         run = SignalRun(
+            user_id=signal.user_id,
             signal_id=signal.id,
             value=value,
             alert_triggered=alert_triggered,
@@ -85,7 +86,7 @@ async def _run_signal_job(signal_id: str):
             signal.status = SignalStatus.ACTIVE
 
         if alert_triggered:
-            config = await AppConfig.get_singleton()
+            config = await AppConfig.get_for_user(signal.user_id)
             await send_telegram_alert(
                 bot_token=config.telegram_bot_token,
                 chat_id=config.telegram_chat_id,
@@ -96,6 +97,7 @@ async def _run_signal_job(signal_id: str):
 
         event_status = "error" if result["status"] == "error" else "ok"
         await AppEvent(
+            user_id=signal.user_id,
             signal_id=signal.id,
             signal_name=signal.name,
             value=value,
@@ -111,6 +113,7 @@ async def _run_signal_job(signal_id: str):
             signal.status = SignalStatus.PAUSED
         try:
             await AppEvent(
+                user_id=signal.user_id,
                 signal_id=signal.id,
                 signal_name=signal.name,
                 value=None,

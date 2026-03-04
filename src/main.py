@@ -18,6 +18,7 @@ from src.routes import landing, dashboard
 from src.routes import signals as signals_router
 from src.routes import config as config_router
 from src.routes import alerts as alerts_router
+from src.routes import auth as auth_router
 
 
 @asynccontextmanager
@@ -30,6 +31,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Signals", lifespan=lifespan)
 
+app.include_router(auth_router.router)
 app.include_router(landing.router)
 app.include_router(dashboard.router)
 app.include_router(signals_router.router)

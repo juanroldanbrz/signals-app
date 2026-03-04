@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Register — Signals{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+  <div class="w-full max-w-md">
+    <div class="bg-dark-card border border-dark-border rounded-lg p-8 glow-blue">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-neon-blue tracking-wider">CREATE ACCOUNT</h1>
+        <p class="text-gray-500 text-sm mt-1">Start monitoring what matters</p>
+      </div>
+
+      {% if error %}
+      <div class="mb-4 px-4 py-3 bg-red-900/30 border border-red-700 rounded text-red-400 text-sm">
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" action="/auth/register" class="space-y-5">
+        <div>
+          <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">Email</label>
+          <input
+            type="email"
+            name="email"
+            required
+            autofocus
+            class="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 text-sm focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/30 transition-colors"
+            placeholder="you@example.com"
+          />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 uppercase tracking-wider mb-1">Password</label>
+          <input
+            type="password"
+            name="password"
+            required
+            class="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 text-sm focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue/30 transition-colors"
+            placeholder="••••••••"
+          />
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-neon-blue/10 border border-neon-blue text-neon-blue font-bold py-2 rounded hover:bg-neon-blue/20 transition-colors tracking-wider text-sm"
+        >
+          CREATE ACCOUNT
+        </button>
+      </form>
+
+      <p class="text-center text-gray-600 text-sm mt-6">
+        Already have an account?
+        <a href="/auth/login" class="text-neon-green hover:text-neon-blue transition-colors">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

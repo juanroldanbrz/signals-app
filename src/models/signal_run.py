@@ -10,6 +10,7 @@ class RunStatus(str, Enum):
 
 
 class SignalRun(Document):
+    user_id: PydanticObjectId
     signal_id: PydanticObjectId
     ran_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     value: float | None = None

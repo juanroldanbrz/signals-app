@@ -4,13 +4,17 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated, Literal
+
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Form, Request, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel as PydanticBaseModel
+
 from src.crawling.agent import crawl
 from src.models.signal import Signal, SignalStatus
 from src.models.signal_run import RunStatus, SignalRun
+from src.models.user import User
+from src.services.auth import get_current_user
 from src.services.executor import extract_from_url
 from src.services.scheduler import _run_signal_job
 
@@ -41,7 +45,10 @@ class PreviewRequest(PydanticBaseModel):
 
 
 @router.post("/signals/preview")
-async def preview_signal(body: PreviewRequest):
+async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+
     queue: asyncio.Queue = asyncio.Queue()
 
     async def on_progress(msg: str) -> None:
@@ -80,10 +87,12 @@ async def preview_signal(body: PreviewRequest):
 
 
 @router.get("/signals/{signal_id}/card", response_class=HTMLResponse)
-async def get_signal_card(request: Request, signal_id: PydanticObjectId):
+async def get_signal_card(request: Request, signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
-    if not signal:
+    if not signal or signal.user_id != current_user.id:
         return HTMLResponse(status_code=404)
     return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal})
 
@@ -91,14 +100,19 @@ async def get_signal_card(request: Request, signal_id: PydanticObjectId):
 @router.post("/signals", response_class=HTMLResponse)
 async def create_signal(
     request: Request,
-    name: Annotated[str, Form()],
-    source_url: Annotated[str, Form()],
-    source_extraction_query: Annotated[str, Form()],
+    current_user: User = Depends(get_current_user),
+    name: Annotated[str, Form()] = ...,
+    source_url: Annotated[str, Form()] = ...,
+    source_extraction_query: Annotated[str, Form()] = ...,
     chart_type: Annotated[str, Form()] = "line",
     interval_minutes: Annotated[int, Form()] = 60,
     source_initial_value: Annotated[str, Form()] = "",
 ):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+
     signal = Signal(
+        user_id=current_user.id,
         name=name,
         source_url=source_url,
         source_extraction_query=source_extraction_query,
@@ -111,6 +125,7 @@ async def create_signal(
         try:
             initial_value = float(source_initial_value)
             run = SignalRun(
+                user_id=current_user.id,
                 signal_id=signal.id,
                 value=initial_value,
                 alert_triggered=False,
@@ -134,9 +149,11 @@ async def create_signal(
 
 
 @router.post("/signals/{signal_id}/delete")
-async def delete_signal(signal_id: PydanticObjectId):
+async def delete_signal(signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     signal = await Signal.get(signal_id)
-    if signal:
+    if signal and signal.user_id == current_user.id:
         from src.models.app_event import AppEvent
         await SignalRun.find(SignalRun.signal_id == signal.id).delete()
         await AppEvent.find(AppEvent.signal_id == signal.id).delete()
@@ -145,10 +162,12 @@ async def delete_signal(signal_id: PydanticObjectId):
 
 
 @router.post("/signals/{signal_id}/toggle-alert", response_class=HTMLResponse)
-async def toggle_alert(request: Request, signal_id: PydanticObjectId):
+async def toggle_alert(request: Request, signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
-    if not signal:
+    if not signal or signal.user_id != current_user.id:
         return HTMLResponse(status_code=404)
     signal.alert_enabled = not signal.alert_enabled
     await signal.save()
@@ -156,19 +175,23 @@ async def toggle_alert(request: Request, signal_id: PydanticObjectId):
 
 
 @router.post("/signals/{signal_id}/toggle-alert-page")
-async def toggle_alert_page(signal_id: PydanticObjectId):
+async def toggle_alert_page(signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     signal = await Signal.get(signal_id)
-    if signal:
+    if signal and signal.user_id == current_user.id:
         signal.alert_enabled = not signal.alert_enabled
         await signal.save()
     return RedirectResponse(url=f"/app/signals/{signal_id}", status_code=303)
 
 
 @router.post("/signals/{signal_id}/run-now", response_class=HTMLResponse)
-async def run_now(request: Request, signal_id: PydanticObjectId):
+async def run_now(request: Request, signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
-    if not signal:
+    if not signal or signal.user_id != current_user.id:
         return HTMLResponse(status_code=404)
     signal.next_run_at = datetime.now(timezone.utc) + timedelta(minutes=signal.interval_minutes)
     await signal.save()
@@ -180,13 +203,16 @@ async def run_now(request: Request, signal_id: PydanticObjectId):
 async def update_signal(
     request: Request,
     signal_id: PydanticObjectId,
-    name: Annotated[str, Form()],
+    current_user: User = Depends(get_current_user),
+    name: Annotated[str, Form()] = ...,
     interval_minutes: Annotated[int, Form()] = 60,
     source_extraction_query: Annotated[str, Form()] = "",
 ):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
-    if not signal:
+    if not signal or signal.user_id != current_user.id:
         return RedirectResponse(url="/app", status_code=303)
 
     signal.name = name
@@ -206,12 +232,15 @@ async def update_signal(
 async def update_alert_config(
     request: Request,
     signal_id: PydanticObjectId,
+    current_user: User = Depends(get_current_user),
     condition_type: Annotated[str, Form()] = "",
     condition_threshold: Annotated[str, Form()] = "",
 ):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
-    if not signal:
+    if not signal or signal.user_id != current_user.id:
         return HTMLResponse(status_code=404)
 
     signal.condition_type = condition_type if condition_type else None

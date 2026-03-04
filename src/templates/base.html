@@ -82,7 +82,13 @@
         <span class="text-dark-border">|</span>
         <a href="/app/config" class="text-sm text-gray-400 hover:text-neon-green transition-colors">Config</a>
         <span class="text-dark-border">|</span>
+        {% if user %}
+        <span class="text-xs text-gray-500">{{ user.email }}</span>
+        <span class="text-dark-border">|</span>
+        <a href="/auth/logout" class="text-xs text-gray-400 hover:text-red-400 transition-colors">Logout</a>
+        {% else %}
         <span class="text-xs text-gray-600">v1.0</span>
+        {% endif %}
       </div>
     </div>
   </nav>

@@ -17,6 +17,7 @@ async def beanie_init():
 
 async def test_signal_defaults():
     signal = Signal(
+        user_id=ObjectId(),
         name="Gold Alert",
         source_url="https://example.com/gold",
         source_extraction_query="current gold price in USD",
@@ -30,6 +31,7 @@ async def test_signal_defaults():
 
 async def test_signal_run_defaults():
     run = SignalRun(
+        user_id=ObjectId(),
         signal_id=ObjectId(),
         value=28.5,
         alert_triggered=False,
