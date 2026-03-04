@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal
-from beanie import Document
+from beanie import Document, PydanticObjectId
 from pydantic import Field
 
 
@@ -12,6 +12,7 @@ class SignalStatus(str, Enum):
 
 
 class Signal(Document):
+    user_id: PydanticObjectId
     name: str
     source_url: str
     source_extraction_query: str

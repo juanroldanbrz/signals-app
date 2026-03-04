@@ -5,6 +5,7 @@ from pydantic import Field
 
 
 class AppEvent(Document):
+    user_id: PydanticObjectId
     signal_id: PydanticObjectId
     signal_name: str
     value: float | None

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Verify Email — Signals{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+  <div class="w-full max-w-md text-center">
+    <div class="bg-dark-card border border-dark-border rounded-lg p-8 glow-blue">
+      <div class="text-4xl mb-4">📬</div>
+      <h1 class="text-xl font-bold text-neon-blue tracking-wider mb-2">CHECK YOUR EMAIL</h1>
+      <p class="text-gray-400 text-sm mb-6">
+        A verification link has been logged to the server console.<br/>
+        Click it to activate your account.
+      </p>
+      <a
+        href="/auth/login"
+        class="inline-block text-sm text-gray-500 hover:text-neon-green transition-colors"
+      >
+        Back to login
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
