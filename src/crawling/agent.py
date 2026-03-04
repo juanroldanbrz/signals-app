@@ -117,7 +117,7 @@ async def crawl(
     """
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
 
             await _emit(f"Navigating to {url} ...", on_progress)
