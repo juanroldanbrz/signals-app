@@ -186,4 +186,5 @@ async def crawl(
             return None, None, "Could not extract value after 3 scroll attempts"
 
     except Exception as e:
-        return None, None, f"Browser error: {str(e)[:200]}"
+        msg = str(e).split("Browser logs:")[0].strip().splitlines()[0][:200]
+        return None, None, f"Browser error: {msg}"
