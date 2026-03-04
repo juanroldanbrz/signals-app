@@ -11,7 +11,7 @@ def test_settings_defaults():
     )
     assert s.default_interval_minutes == 60
     assert s.mongo_db == "signals"
-    assert s.llm_model == "gemini/gemini-2.0-flash"
+    assert s.llm_model == "gemini/gemini-2.5-flash"
     assert s.jwt_expire_minutes == 60 * 24 * 7
     assert s.mandatory_email_verification is False
     assert s.resend_api_key == ""

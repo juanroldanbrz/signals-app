@@ -11,9 +11,28 @@ Each case asserts:
 """
 from datetime import datetime
 
+import litellm
 import pytest
 
+from src.config import settings
 from src.crawling.agent import crawl
+
+
+# ---------------------------------------------------------------------------
+# LLM connectivity
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+async def test_gemini_api_connectivity():
+    """Verify the configured Gemini model responds to a basic prompt."""
+    response = await litellm.acompletion(
+        model=settings.llm_model,
+        messages=[{"role": "user", "content": "Reply with just the number 42. Nothing else."}],
+        api_key=settings.llm_api_key or None,
+    )
+    text = response.choices[0].message.content.strip()
+    assert "42" in text, f"Expected '42' in response, got: {text!r}"
+    print(f"\nGemini ({settings.llm_model}) response: {text!r}")
 
 
 # ---------------------------------------------------------------------------
