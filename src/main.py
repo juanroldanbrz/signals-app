@@ -4,12 +4,18 @@ from fastapi import FastAPI, Request
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 from src.config import settings as _settings
+import os
 if _settings.langfuse_public_key and _settings.langfuse_secret_key:
-    import os
     os.environ.setdefault("LANGFUSE_PUBLIC_KEY", _settings.langfuse_public_key)
     os.environ.setdefault("LANGFUSE_SECRET_KEY", _settings.langfuse_secret_key)
     os.environ.setdefault("LANGFUSE_HOST", _settings.langfuse_host)
     logging.getLogger(__name__).info("Langfuse tracing enabled → %s", _settings.langfuse_host)
+if _settings.vertexai_project:
+    os.environ.setdefault("VERTEXAI_PROJECT", _settings.vertexai_project)
+    os.environ.setdefault("VERTEXAI_LOCATION", _settings.vertexai_location)
+    if _settings.vertexai_credentials:
+        os.environ.setdefault("VERTEXAI_CREDENTIALS", _settings.vertexai_credentials)
+    logging.getLogger(__name__).info("Vertex AI enabled → project=%s location=%s", _settings.vertexai_project, _settings.vertexai_location)
 from fastapi.responses import HTMLResponse
 from pymongo.errors import PyMongoError
 from src.db import init_db

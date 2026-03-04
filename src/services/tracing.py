@@ -148,13 +148,19 @@ def _log_generation(
 # LiteLLM call wrappers — each one logs a Langfuse generation
 # ---------------------------------------------------------------------------
 
+def _api_key() -> str | None:
+    """Return the API key for non-Vertex providers; None for Vertex AI (uses env-based auth)."""
+    if settings.llm_model.startswith("vertex_ai/"):
+        return None
+    return settings.llm_api_key or None
+
+
 async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
     model = settings.llm_model
     start = _now()
     image_b64 = base64.b64encode(image).decode()
-    response = await litellm.acompletion(
+    kwargs = dict(
         model=model,
-        api_key=settings.llm_api_key,
         messages=[{
             "role": "user",
             "content": [
@@ -163,6 +169,9 @@ async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
             ],
         }],
     )
+    if (key := _api_key()) is not None:
+        kwargs["api_key"] = key
+    response = await litellm.acompletion(**kwargs)
     text = response.choices[0].message.content
     _log_generation(name, model, {"prompt": prompt[:1000], "image_bytes": len(image)}, text, start)
     return text
@@ -171,11 +180,13 @@ async def gemini_vision(name: str, image: bytes, prompt: str) -> str:
 async def gemini_text(name: str, prompt: str) -> str:
     model = settings.llm_model
     start = _now()
-    response = await litellm.acompletion(
+    kwargs = dict(
         model=model,
-        api_key=settings.llm_api_key,
         messages=[{"role": "user", "content": prompt}],
     )
+    if (key := _api_key()) is not None:
+        kwargs["api_key"] = key
+    response = await litellm.acompletion(**kwargs)
     text = response.choices[0].message.content
     _log_generation(name, model, {"prompt": prompt[:1000]}, text, start)
     return text

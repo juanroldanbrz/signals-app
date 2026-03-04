@@ -144,9 +144,9 @@ When triggered, alerts appear in `/app/alerts` and (if configured) are sent via 
 
 ## LLM providers
 
-Signals uses [LiteLLM](https://docs.litellm.ai) as a gateway — switch providers with two lines in `.env`, no code changes needed.
+Signals uses [LiteLLM](https://docs.litellm.ai) as a gateway — switch providers by editing `.env`, no code changes needed.
 
-### Configuration
+### Option A — API key providers
 
 ```env
 LLM_API_KEY=your_api_key_here
@@ -167,12 +167,33 @@ LLM_MODEL=gemini/gemini-3.0-flash-preview
 
 > **Vision support is required.** Value extraction works by sending a page screenshot to the LLM. Models without vision support cannot be used.
 
-### Example: switching to OpenAI
+### Option B — Google Vertex AI (service account)
+
+Use this when you have a GCP project with Vertex AI enabled and want to authenticate via a service account instead of an API key.
 
 ```env
-LLM_API_KEY=sk-...
-LLM_MODEL=openai/gpt-4o
+LLM_MODEL=vertex_ai/gemini-2.0-flash
+VERTEXAI_PROJECT=your-gcp-project-id
+VERTEXAI_LOCATION=us-central1
+VERTEXAI_CREDENTIALS={"type":"service_account","project_id":"..."}
 ```
+
+`LLM_API_KEY` is not required and can be left empty or omitted entirely.
+
+**Getting a service account JSON:**
+1. GCP Console → IAM → Service Accounts → Create
+2. Grant role: **Vertex AI User**
+3. Keys tab → Add Key → JSON → download the file
+4. Paste the entire file contents (on one line) as the value of `VERTEXAI_CREDENTIALS`
+
+**Available Vertex AI models with vision:**
+
+| `LLM_MODEL` value | Vision |
+|-------------------|--------|
+| `vertex_ai/gemini-2.0-flash` | yes |
+| `vertex_ai/gemini-2.0-flash-lite` | yes |
+| `vertex_ai/gemini-1.5-pro` | yes |
+| `vertex_ai/gemini-1.5-flash` | yes |
 
 ---
 

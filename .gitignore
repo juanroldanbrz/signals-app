@@ -52,3 +52,6 @@ Screenshot*.png
 
 # Git worktrees
 .worktrees/
+
+# Deployment
+.deployment/
