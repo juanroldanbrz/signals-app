@@ -12,7 +12,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Install Playwright + Chromium with system dependencies
-RUN uv run playwright install chromium --with-deps
+RUN apt-get update && uv run playwright install chromium --with-deps && rm -rf /var/lib/apt/lists/*
 
 # Copy source
 COPY src/ ./src/
