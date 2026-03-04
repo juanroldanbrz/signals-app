@@ -258,5 +258,5 @@ async def update_alert_config(
 
     runs = await SignalRun.find(SignalRun.signal_id == signal.id).sort("-ran_at").limit(20).to_list()
     return templates.TemplateResponse(
-        request, "signal_detail.html", {"signal": signal, "runs": runs}
+        request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user}
     )

@@ -23,7 +23,7 @@ async def test_signal_defaults():
         source_extraction_query="current gold price in USD",
     )
     assert signal.status == SignalStatus.ACTIVE
-    assert signal.alert_enabled is True
+    assert signal.alert_enabled is False
     assert signal.interval_minutes == 60
     assert signal.chart_type == "line"
     assert signal.consecutive_errors == 0

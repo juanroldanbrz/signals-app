@@ -18,7 +18,7 @@ class Signal(Document):
     source_extraction_query: str
     chart_type: Literal["line", "bar", "flag"] = "line"
     interval_minutes: int = 60
-    alert_enabled: bool = True
+    alert_enabled: bool = False
     status: SignalStatus = SignalStatus.ACTIVE
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_run_at: datetime | None = None
