@@ -1,10 +1,10 @@
 <div id="create-modal"
      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
      onclick="if(event.target===this) this.remove()">
-  <div class="bg-dark-card border border-dark-border rounded-lg w-full max-w-xl mx-4" onclick="event.stopPropagation()">
+  <div class="bg-dark-card border border-dark-border rounded-lg w-full max-w-xl mx-4 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
 
     <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b border-dark-border">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-dark-border shrink-0">
       <div class="flex items-center gap-3">
         <h2 class="font-bold text-white tracking-wider text-sm font-mono">NEW SIGNAL</h2>
         {% if user.subscription_type == "FREE" %}
@@ -15,127 +15,131 @@
         class="text-gray-600 hover:text-white transition-colors text-xl leading-none">×</button>
     </div>
 
-    <!-- Flip card -->
-    <div style="perspective: 1000px;">
-      <div id="flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative; min-height: 520px;">
+    <!-- Body: scrollable -->
+    <div class="overflow-y-auto flex-1">
 
-        <!-- FRONT: Form -->
-        <div style="backface-visibility: hidden;" class="px-6 py-5 absolute inset-0">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
-              <input id="f-name" type="text" placeholder="e.g. BTC Price"
-                class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-600 font-mono mb-1">URL</label>
-              <input id="f-url" type="url" placeholder="https://..."
-                class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-600 font-mono mb-1">WHAT TO EXTRACT</label>
-              <textarea id="f-query" rows="3" placeholder="e.g. current BTC price in USD"
-                class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none"></textarea>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-600 font-mono mb-2">CHART TYPE</label>
-              <div class="flex gap-6">
-                <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
-                  <input type="radio" name="chart-type" value="line" checked class="accent-neon-green" /> Line
-                </label>
-                <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
-                  <input type="radio" name="chart-type" value="bar" class="accent-neon-green" /> Bar
-                </label>
-                <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
-                  <input type="radio" name="chart-type" value="flag" class="accent-neon-green" /> Flag (true/false)
-                </label>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
-              {% if user.subscription_type == "FREE" %}
-              <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
-                <span>24h</span>
-                <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
-                   class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
-              </div>
-              <input type="hidden" id="f-interval" value="1440" />
-              {% else %}
-              <select id="f-interval"
-                class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50">
-                <option value="60">1h</option>
-                <option value="120">2h</option>
-                <option value="360">6h</option>
-                <option value="720">12h</option>
-                <option value="1440">24h</option>
-              </select>
-              {% endif %}
-            </div>
-            <p id="dry-run-error" class="hidden text-red-400 text-xs font-mono"></p>
-            <button id="dry-run-btn" onclick="runDryRun()"
-              class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
-              DRY RUN
-            </button>
-          </div>
-        </div>
+      <!-- Flip card -->
+      <div style="perspective: 1000px;">
+        <div id="flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
 
-        <!-- BACK: Preview -->
-        <div id="card-back" style="backface-visibility: hidden; transform: rotateY(180deg);" class="px-6 py-5 absolute inset-0">
-          <div class="border border-dark-border rounded p-4 space-y-3 text-xs font-mono mb-5">
-            <div class="text-gray-500 tracking-wider mb-3">PREVIEW RESULT</div>
-            <div class="flex gap-3 items-center">
-              <span class="text-gray-600 w-20 shrink-0">VALUE</span>
-              <span id="preview-value" class="font-bold text-xl"></span>
+          <!-- FRONT: Form -->
+          <div style="backface-visibility: hidden;" class="px-6 py-5">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
+                <input id="f-name" type="text" placeholder="e.g. BTC Price"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">URL</label>
+                <input id="f-url" type="url" placeholder="https://..."
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">WHAT TO EXTRACT</label>
+                <textarea id="f-query" rows="3" placeholder="e.g. current BTC price in USD"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-2">CHART TYPE</label>
+                <div class="flex gap-6">
+                  <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
+                    <input type="radio" name="chart-type" value="line" checked class="accent-neon-green" /> Line
+                  </label>
+                  <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
+                    <input type="radio" name="chart-type" value="bar" class="accent-neon-green" /> Bar
+                  </label>
+                  <label class="flex items-center gap-2 text-xs font-mono text-gray-400 cursor-pointer">
+                    <input type="radio" name="chart-type" value="flag" class="accent-neon-green" /> Flag (true/false)
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
+                {% if user.subscription_type == "FREE" %}
+                <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
+                  <span>24h</span>
+                  <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
+                     class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
+                </div>
+                <input type="hidden" id="f-interval" value="1440" />
+                {% else %}
+                <select id="f-interval"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50">
+                  <option value="60">1h</option>
+                  <option value="120">2h</option>
+                  <option value="360">6h</option>
+                  <option value="720">12h</option>
+                  <option value="1440">24h</option>
+                </select>
+                {% endif %}
+              </div>
+              <p id="dry-run-error" class="hidden text-red-400 text-xs font-mono"></p>
+              <button id="dry-run-btn" onclick="runDryRun()"
+                class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
+                DRY RUN
+              </button>
             </div>
-            <div class="flex gap-3">
-              <span class="text-gray-600 w-20 shrink-0">SOURCE</span>
-              <span id="preview-source" class="text-neon-blue break-all"></span>
-            </div>
-            <div id="preview-screenshot-row" class="flex gap-3 hidden">
-              <span class="text-gray-600 w-20 shrink-0">SCREENSHOT</span>
-              <a id="preview-screenshot" href="#" target="_blank" rel="noopener"
-                class="text-neon-blue underline hover:text-white transition-colors">📸 view</a>
+
+            <!-- Console — inside the form, shown during dry run -->
+            <div id="dry-run-console" class="hidden mt-4">
+              <div class="bg-black border border-dark-border rounded overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-1.5 border-b border-dark-border">
+                  <span class="text-xs text-gray-600 font-mono tracking-wider">CONSOLE</span>
+                  <span id="console-spinner" class="hidden text-neon-green text-xs font-mono animate-pulse">●</span>
+                </div>
+                <div id="console-output"
+                     class="px-3 py-2 font-mono text-xs text-neon-green leading-relaxed h-56 overflow-y-auto overflow-x-hidden break-all">
+                </div>
+              </div>
             </div>
           </div>
 
-          <form id="save-form" method="POST" action="/signals"
-                hx-post="/signals" hx-target="#create-modal" hx-swap="outerHTML">
-            <input type="hidden" name="name" id="sf-name" />
-            <input type="hidden" name="source_url" id="sf-url" />
-            <input type="hidden" name="source_extraction_query" id="sf-query" />
-            <input type="hidden" name="chart_type" id="sf-chart-type" />
-            <input type="hidden" name="interval_minutes" id="sf-interval" />
-            <input type="hidden" name="source_initial_value" id="sf-initial-value" />
-
-            <div class="flex gap-3">
-              <button type="button" onclick="flipBack()"
-                class="flex-1 py-2 border border-dark-border text-gray-500 text-xs font-mono rounded hover:border-gray-500 hover:text-gray-300 transition-all">
-                ← TRY AGAIN
-              </button>
-              <button type="submit"
-                class="flex-1 py-2 bg-neon-green text-black font-bold text-xs rounded tracking-wider hover:bg-neon-green/90 transition-all">
-                SAVE SIGNAL
-              </button>
+          <!-- BACK: Preview -->
+          <div id="card-back" style="backface-visibility: hidden; transform: rotateY(180deg); top: 0; left: 0; right: 0;" class="px-6 py-5 absolute">
+            <div class="border border-dark-border rounded p-4 space-y-3 text-xs font-mono mb-5">
+              <div class="text-gray-500 tracking-wider mb-3">PREVIEW RESULT</div>
+              <div class="flex gap-3 items-center">
+                <span class="text-gray-600 w-20 shrink-0">VALUE</span>
+                <span id="preview-value" class="font-bold text-xl"></span>
+              </div>
+              <div class="flex gap-3">
+                <span class="text-gray-600 w-20 shrink-0">SOURCE</span>
+                <span id="preview-source" class="text-neon-blue break-all"></span>
+              </div>
+              <div id="preview-screenshot-row" class="flex gap-3 hidden">
+                <span class="text-gray-600 w-20 shrink-0">SCREENSHOT</span>
+                <a id="preview-screenshot" href="#" target="_blank" rel="noopener"
+                  class="text-neon-blue underline hover:text-white transition-colors">📸 view</a>
+              </div>
             </div>
-          </form>
-        </div>
 
+            <form id="save-form" method="POST" action="/signals"
+                  hx-post="/signals" hx-target="#create-modal" hx-swap="outerHTML">
+              <input type="hidden" name="name" id="sf-name" />
+              <input type="hidden" name="source_url" id="sf-url" />
+              <input type="hidden" name="source_extraction_query" id="sf-query" />
+              <input type="hidden" name="chart_type" id="sf-chart-type" />
+              <input type="hidden" name="interval_minutes" id="sf-interval" />
+              <input type="hidden" name="source_initial_value" id="sf-initial-value" />
+
+              <div class="flex gap-3">
+                <button type="button" onclick="flipBack()"
+                  class="flex-1 py-2 border border-dark-border text-gray-500 text-xs font-mono rounded hover:border-gray-500 hover:text-gray-300 transition-all">
+                  ← TRY AGAIN
+                </button>
+                <button type="submit"
+                  class="flex-1 py-2 bg-neon-green text-black font-bold text-xs rounded tracking-wider hover:bg-neon-green/90 transition-all">
+                  SAVE SIGNAL
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
       </div>
-    </div>
 
-    <!-- Console — live progress log, shown during dry run -->
-    <div id="dry-run-console" class="hidden px-6 pb-5">
-      <div class="bg-black border border-dark-border rounded overflow-hidden">
-        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-dark-border">
-          <span class="text-xs text-gray-600 font-mono tracking-wider">CONSOLE</span>
-          <span id="console-spinner" class="hidden text-neon-green text-xs font-mono animate-pulse">●</span>
-        </div>
-        <div id="console-output"
-             class="px-3 py-2 font-mono text-xs text-neon-green leading-relaxed max-h-72 overflow-y-auto overflow-x-hidden break-all">
-        </div>
-      </div>
     </div>
-
   </div>
 </div>
 
@@ -229,10 +233,9 @@
         if (!line.startsWith('data: ')) continue;
         try {
           const event = JSON.parse(line.slice(6));
-          if (event.progress !== undefined) {
-            consoleLog(event.progress);
+          if (event.msg !== undefined) {
+            consoleLog(event.msg);
           } else {
-            // done event
             data = event;
           }
         } catch (_) {}
@@ -249,7 +252,7 @@
       return;
     }
 
-    consoleLog('Done.', 'text-gray-500');
+    consoleLog('✓ Done.', 'text-gray-500');
 
     // Populate back face
     const valueEl = document.getElementById('preview-value');
