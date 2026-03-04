@@ -5,7 +5,10 @@
 
     <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b border-dark-border">
-      <h2 class="font-bold text-white tracking-wider text-sm font-mono">NEW SIGNAL</h2>
+      <div class="flex items-center gap-3">
+        <h2 class="font-bold text-white tracking-wider text-sm font-mono">NEW SIGNAL</h2>
+        <span class="px-2 py-0.5 text-xs font-mono border border-gray-700 text-gray-500 rounded">FREE PLAN · 24h refresh · 1 signal</span>
+      </div>
       <button onclick="document.getElementById('create-modal').remove()"
         class="text-gray-600 hover:text-white transition-colors text-xl leading-none">×</button>
     </div>
@@ -48,14 +51,12 @@
             </div>
             <div>
               <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
-              <select id="f-interval"
-                class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50">
-                <option value="60">1h</option>
-                <option value="120">2h</option>
-                <option value="360">6h</option>
-                <option value="720">12h</option>
-                <option value="1440">24h</option>
-              </select>
+              <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
+                <span>24h</span>
+                <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
+                   class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
+              </div>
+              <input type="hidden" id="f-interval" value="1440" />
             </div>
             <p id="dry-run-error" class="hidden text-red-400 text-xs font-mono"></p>
             <button id="dry-run-btn" onclick="runDryRun()"
