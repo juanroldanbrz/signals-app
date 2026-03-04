@@ -111,13 +111,23 @@ async def create_signal(
     if isinstance(current_user, RedirectResponse):
         return current_user
 
+    existing_count = await Signal.find(Signal.user_id == current_user.id).count()
+    if existing_count >= 1:
+        from src.templates_config import templates
+        return templates.TemplateResponse(
+            request,
+            "partials/plan_limit.html",
+            {},
+            status_code=403,
+        )
+
     signal = Signal(
         user_id=current_user.id,
         name=name,
         source_url=source_url,
         source_extraction_query=source_extraction_query,
         chart_type=chart_type,
-        interval_minutes=interval_minutes,
+        interval_minutes=1440,
     )
     await signal.insert()
 
