@@ -225,7 +225,7 @@ async def update_signal(
         return RedirectResponse(url="/app", status_code=303)
 
     signal.name = name
-    signal.interval_minutes = interval_minutes
+    signal.interval_minutes = 1440 if current_user.subscription_type == "FREE" else interval_minutes
     if source_extraction_query:
         signal.source_extraction_query = source_extraction_query
     signal.consecutive_errors = 0
@@ -234,7 +234,7 @@ async def update_signal(
     await signal.save()
 
     runs = await SignalRun.find(SignalRun.signal_id == signal.id).sort("-ran_at").limit(20).to_list()
-    return templates.TemplateResponse(request, "signal_detail.html", {"signal": signal, "runs": runs})
+    return templates.TemplateResponse(request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user})
 
 
 @router.post("/signals/{signal_id}/alert-config", response_class=HTMLResponse)

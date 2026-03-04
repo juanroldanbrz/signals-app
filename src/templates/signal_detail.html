@@ -54,12 +54,21 @@
           class="w-full bg-dark-bg border border-dark-border rounded p-3 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none mb-4">{{ signal.source_extraction_query }}</textarea>
 
         <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
+        {% if user.subscription_type == "FREE" %}
+        <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between mb-4">
+          <span>24h</span>
+          <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
+             class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
+        </div>
+        <input type="hidden" name="interval_minutes" value="1440" />
+        {% else %}
         <select name="interval_minutes"
           class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4">
           {% for hours in [1, 2, 6, 12, 24] %}
           <option value="{{ hours * 60 }}" {% if signal.interval_minutes == hours * 60 %}selected{% endif %}>{{ hours }}h</option>
           {% endfor %}
         </select>
+        {% endif %}
 
         <button type="submit" class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">SAVE</button>
       </form>
