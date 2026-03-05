@@ -63,19 +63,3 @@ async def save_email_config(
     config.email_enabled = email_enabled == "on"
     await config.save()
     return RedirectResponse(url="/app/config", status_code=303)
-
-
-@router.post("/app/config/brave")
-async def save_brave_config(
-    current_user: User = Depends(get_current_user),
-    brave_enabled: Annotated[str, Form()] = "",
-    brave_api_key: Annotated[str, Form()] = "",
-):
-    if isinstance(current_user, RedirectResponse):
-        return current_user
-    from src.models.app_config import AppConfig
-    config = await AppConfig.get_for_user(current_user.id)
-    config.brave_search_enabled = brave_enabled == "on"
-    config.brave_api_key = brave_api_key
-    await config.save()
-    return RedirectResponse(url="/app/config", status_code=303)

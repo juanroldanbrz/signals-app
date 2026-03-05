@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from src.crawling.agent import crawl_text
-from src.models.app_config import AppConfig
+from src.config import settings
 from src.models.digest import DigestContent, SourceRef
 from src.models.signal import Signal
 from src.services.brave import brave_search
@@ -36,15 +36,13 @@ async def run_digest(signal: Signal, on_progress=None) -> dict:
         else:
             await emit(f"⚠ Could not fetch {url}")
 
-    if signal.search_query:
-        config = await AppConfig.get_for_user(signal.user_id)
-        if config.brave_api_key and config.brave_search_enabled:
-            await emit(f"Searching web: {signal.search_query} ...")
-            search_results = await brave_search(signal.search_query, config.brave_api_key)
-            for sr in search_results:
-                sources_text.append(f"## {sr.title}\nURL: {sr.url}\nDate: {sr.date or 'unknown'}")
-                source_refs.append(sr)
-            await emit(f"✓ Found {len(search_results)} web results")
+    if signal.search_query and settings.brave_search_api_key:
+        await emit(f"Searching web: {signal.search_query} ...")
+        search_results = await brave_search(signal.search_query, settings.brave_search_api_key)
+        for sr in search_results:
+            sources_text.append(f"## {sr.title}\nURL: {sr.url}\nDate: {sr.date or 'unknown'}")
+            source_refs.append(sr)
+        await emit(f"✓ Found {len(search_results)} web results")
 
     if not sources_text:
         return {

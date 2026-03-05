@@ -49,27 +49,6 @@
       </form>
     </div>
 
-    <!-- Brave Search -->
-    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
-      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">BRAVE SEARCH</h2>
-      <p class="text-xs font-mono text-gray-700 mb-4">Used by Digest signals to fetch web search results alongside your URLs.</p>
-      <form method="POST" action="/app/config/brave">
-        <label class="flex items-center justify-between mb-4 cursor-pointer">
-          <span class="text-xs font-mono text-gray-400">Enable Brave Search</span>
-          <input type="checkbox" name="brave_enabled" value="on" {% if config.brave_search_enabled %}checked{% endif %}
-            class="accent-neon-green w-4 h-4 cursor-pointer" />
-        </label>
-        <label class="block text-xs text-gray-600 font-mono mb-1">API KEY</label>
-        <input name="brave_api_key" type="password" value="{{ config.brave_api_key }}"
-          placeholder="BSA..."
-          class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4" />
-        <button type="submit"
-          class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
-          SAVE
-        </button>
-      </form>
-    </div>
-
     <!-- Scheduler health -->
     <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
       <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">SCHEDULER HEALTH</h2>

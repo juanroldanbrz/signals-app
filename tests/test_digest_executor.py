@@ -82,39 +82,31 @@ async def test_run_digest_emits_progress():
     assert any("ready" in m.lower() for m in messages)
 
 
-async def test_run_digest_skips_brave_when_disabled():
+async def test_run_digest_skips_brave_when_no_key():
     from src.services.digest_executor import run_digest
 
     sample = DigestContent(summary="ok", key_points=[], sources=[])
     signal = _make_signal(search_query="AI news")
     brave_mock = AsyncMock(return_value=[])
 
-    mock_config = MagicMock()
-    mock_config.brave_api_key = ""
-    mock_config.brave_search_enabled = False
-
     with patch("src.services.digest_executor.crawl_text", AsyncMock(return_value={
         "text": "Content", "title": "Page", "url": "https://example.com",
         "fetched_at": "2026-03-05T10:00:00+00:00",
     })), patch("src.services.digest_executor.gemini_text", AsyncMock(
         return_value=sample.model_dump_json()
-    )), patch("src.services.digest_executor.AppConfig.get_for_user", AsyncMock(
-        return_value=mock_config
-    )), patch("src.services.digest_executor.brave_search", brave_mock):
+    )), patch("src.services.digest_executor.settings") as mock_settings, \
+       patch("src.services.digest_executor.brave_search", brave_mock):
+        mock_settings.brave_search_api_key = ""
         await run_digest(signal)
 
     brave_mock.assert_not_called()
 
 
-async def test_run_digest_calls_brave_when_enabled():
+async def test_run_digest_calls_brave_when_key_set():
     from src.services.digest_executor import run_digest
 
     sample = DigestContent(summary="ok", key_points=[], sources=[])
     signal = _make_signal(search_query="AI news")
-
-    mock_config = MagicMock()
-    mock_config.brave_api_key = "test-key"
-    mock_config.brave_search_enabled = True
 
     brave_results = [SourceRef(title="Web Result", url="https://web.com", date="2026-03-05")]
     brave_mock = AsyncMock(return_value=brave_results)
@@ -124,9 +116,9 @@ async def test_run_digest_calls_brave_when_enabled():
         "fetched_at": "2026-03-05T10:00:00+00:00",
     })), patch("src.services.digest_executor.gemini_text", AsyncMock(
         return_value=sample.model_dump_json()
-    )), patch("src.services.digest_executor.AppConfig.get_for_user", AsyncMock(
-        return_value=mock_config
-    )), patch("src.services.digest_executor.brave_search", brave_mock):
+    )), patch("src.services.digest_executor.settings") as mock_settings, \
+       patch("src.services.digest_executor.brave_search", brave_mock):
+        mock_settings.brave_search_api_key = "test-key"
         await run_digest(signal)
 
     brave_mock.assert_called_once_with("AI news", "test-key")
