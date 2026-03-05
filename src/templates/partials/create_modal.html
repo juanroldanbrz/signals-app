@@ -180,7 +180,7 @@
                   class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50 resize-none"></textarea>
               </div>
               <div>
-                <label class="block text-xs text-gray-600 font-mono mb-2">URLS TO CRAWL</label>
+                <label class="block text-xs text-gray-600 font-mono mb-2">URLS TO CRAWL <span class="text-gray-700">(optional — leave empty to use web search)</span></label>
                 <div id="d-url-list" class="space-y-2 mb-2">
                   <div class="flex gap-2">
                     <input type="url" placeholder="https://..." data-url-input
@@ -453,10 +453,7 @@
   };
 
   window.removeUrlRow = function(btn) {
-    const list = document.getElementById('d-url-list');
-    if (list.children.length > 1) {
-      btn.closest('.flex').remove();
-    }
+    btn.closest('.flex').remove();
   };
 
   function digestConsoleLog(msg, cls) {
