@@ -7,6 +7,8 @@ class AppConfig(Document):
     telegram_enabled: bool = False
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    brave_api_key: str = ""
+    brave_search_enabled: bool = False
 
     class Settings:
         name = "app_config"
