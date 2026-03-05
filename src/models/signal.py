@@ -16,6 +16,9 @@ class Signal(Document):
     name: str
     source_url: str
     source_extraction_query: str
+    signal_type: Literal["monitor", "digest"] = "monitor"
+    source_urls: list[str] = []
+    search_query: str | None = None
     chart_type: Literal["line", "bar", "flag"] = "line"
     interval_minutes: int = 60
     alert_enabled: bool = False

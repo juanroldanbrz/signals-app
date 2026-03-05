@@ -17,6 +17,7 @@ class SignalRun(Document):
     alert_triggered: bool = False
     status: RunStatus = RunStatus.OK
     raw_result: str | None = None
+    digest_content: str | None = None
 
     class Settings:
         name = "signal_runs"
