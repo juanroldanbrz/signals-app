@@ -315,7 +315,7 @@ async def update_signal(
     await signal.save()
 
     runs = await SignalRun.find(SignalRun.signal_id == signal.id).sort("-ran_at").limit(20).to_list()
-    return templates.TemplateResponse(request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user})
+    return templates.TemplateResponse(request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user, "latest_digest": None})
 
 
 @router.post("/signals/{signal_id}/alert-config", response_class=HTMLResponse)
@@ -339,5 +339,5 @@ async def update_alert_config(
 
     runs = await SignalRun.find(SignalRun.signal_id == signal.id).sort("-ran_at").limit(20).to_list()
     return templates.TemplateResponse(
-        request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user}
+        request, "signal_detail.html", {"signal": signal, "runs": runs, "user": current_user, "latest_digest": None}
     )

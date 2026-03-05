@@ -16,26 +16,41 @@
         <span class="text-xs font-mono
           {% if signal.status.value == 'active' %}text-neon-green{% elif signal.status.value == 'paused' %}text-yellow-400{% else %}text-red-400{% endif %}
           pulse-dot">{{ signal.status.value | upper }}</span>
+        {% if signal.signal_type == "digest" %}
+        <span class="text-xs px-2 py-0.5 rounded bg-neon-blue/10 text-neon-blue border border-neon-blue/20 font-mono">DIGEST</span>
+        {% endif %}
         {% if signal.alert_triggered %}
         <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">ALERT TRIGGERED</span>
         {% endif %}
       </div>
       <h1 class="text-xl font-bold text-white mb-1">{{ signal.name }}</h1>
-      {% if signal.last_value is not none %}
-      <div class="flex items-end gap-1 mt-4">
-        {% if signal.chart_type == 'flag' %}
-        <span class="text-4xl font-bold {% if signal.last_value == 1.0 %}text-neon-green{% else %}text-red-400{% endif %}">
-          {% if signal.last_value == 1.0 %}✓ TRUE{% else %}✗ FALSE{% endif %}
-        </span>
-        {% else %}
-        <span class="text-4xl font-bold text-neon-blue">{{ "%.2f" | format(signal.last_value) }}</span>
+
+      {% if signal.signal_type == "digest" %}
+        {% if signal.source_urls %}
+        <div class="mt-3 space-y-1">
+          <p class="text-gray-700 text-xs font-mono">SOURCES:</p>
+          {% for url in signal.source_urls %}
+          <p class="text-xs font-mono"><a href="{{ url }}" target="_blank" class="text-neon-blue hover:underline truncate block">{{ url }}</a></p>
+          {% endfor %}
+        </div>
         {% endif %}
-      </div>
       {% else %}
-      <p class="text-gray-600 text-sm font-mono mt-4">No data yet</p>
-      {% endif %}
-      {% if signal.source_url %}
-      <p class="text-gray-700 text-xs font-mono mt-1">SOURCE: <a href="{{ signal.source_url }}" target="_blank" class="text-neon-blue hover:underline">{{ signal.source_url }}</a></p>
+        {% if signal.last_value is not none %}
+        <div class="flex items-end gap-1 mt-4">
+          {% if signal.chart_type == 'flag' %}
+          <span class="text-4xl font-bold {% if signal.last_value == 1.0 %}text-neon-green{% else %}text-red-400{% endif %}">
+            {% if signal.last_value == 1.0 %}✓ TRUE{% else %}✗ FALSE{% endif %}
+          </span>
+          {% else %}
+          <span class="text-4xl font-bold text-neon-blue">{{ "%.2f" | format(signal.last_value) }}</span>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="text-gray-600 text-sm font-mono mt-4">No data yet</p>
+        {% endif %}
+        {% if signal.source_url %}
+        <p class="text-gray-700 text-xs font-mono mt-1">SOURCE: <a href="{{ signal.source_url }}" target="_blank" class="text-neon-blue hover:underline">{{ signal.source_url }}</a></p>
+        {% endif %}
       {% endif %}
     </div>
 
@@ -49,7 +64,7 @@
         <input name="name" value="{{ signal.name }}" required
           class="w-full bg-dark-bg border border-dark-border rounded p-3 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 mb-4" />
 
-        <label class="block text-xs text-gray-600 font-mono mb-1">WHAT TO EXTRACT</label>
+        <label class="block text-xs text-gray-600 font-mono mb-1">{% if signal.signal_type == "digest" %}TOPIC{% else %}WHAT TO EXTRACT{% endif %}</label>
         <textarea name="source_extraction_query" rows="2"
           class="w-full bg-dark-bg border border-dark-border rounded p-3 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none mb-4">{{ signal.source_extraction_query }}</textarea>
 
@@ -74,6 +89,7 @@
       </form>
     </div>
 
+    {% if signal.signal_type != "digest" %}
     <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
       <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-3">ALERTS</h2>
 
@@ -119,11 +135,81 @@
         </button>
       </form>
     </div>
+    {% endif %}
   </div>
 
-  <!-- Right: Chart + History -->
+  <!-- Right: Content area -->
   <div class="lg:col-span-2 space-y-6">
 
+    {% if signal.signal_type == "digest" %}
+
+    <!-- Unverified banner -->
+    <div class="p-3 rounded border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 text-xs font-mono">
+      ⚠ Unverified — AI-generated content. Always verify sources before acting on this information.
+    </div>
+
+    <!-- Latest digest panel -->
+    {% if latest_digest %}
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">LATEST DIGEST</h2>
+      <p class="text-gray-300 text-sm leading-relaxed mb-4">{{ latest_digest.summary }}</p>
+
+      {% if latest_digest.key_points %}
+      <h3 class="text-xs font-mono text-gray-500 tracking-wider mb-2">KEY POINTS</h3>
+      <ul class="space-y-1 mb-4">
+        {% for point in latest_digest.key_points %}
+        <li class="text-gray-400 text-xs font-mono flex gap-2"><span class="text-neon-green">›</span>{{ point }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if latest_digest.sources %}
+      <h3 class="text-xs font-mono text-gray-500 tracking-wider mb-2">SOURCES</h3>
+      <div class="space-y-1">
+        {% for source in latest_digest.sources %}
+        <div class="flex items-center gap-2 text-xs font-mono">
+          <a href="{{ source.url }}" target="_blank" class="text-neon-blue hover:underline flex-1 truncate">{{ source.title or source.url }}</a>
+          {% if source.date %}<span class="text-gray-700 flex-shrink-0">{{ source.date }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <p class="text-gray-700 font-mono text-sm text-center py-8">No digest yet — run the signal to generate one</p>
+    </div>
+    {% endif %}
+
+    <!-- Digest history -->
+    <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
+      <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">DIGEST HISTORY</h2>
+      {% set digest_runs = runs | selectattr('digest_content', 'ne', none) | list %}
+      {% if not digest_runs %}
+      <p class="text-gray-700 font-mono text-sm text-center py-8">No history yet</p>
+      {% else %}
+      <div class="space-y-2 max-h-80 overflow-y-auto">
+        {% for run in digest_runs %}
+        {% set dc = run.digest_content | fromjson %}
+        <div class="p-3 rounded border border-dark-border bg-dark-bg/50">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-gray-700 text-xs font-mono">{{ run.ran_at | strftime('%m/%d %H:%M') }}</span>
+            <span class="text-xs font-mono {% if run.status.value == 'error' %}text-yellow-400{% else %}text-gray-600{% endif %}">
+              {{ run.status.value | upper }}
+            </span>
+          </div>
+          {% if dc.summary %}
+          <p class="text-gray-500 text-xs font-mono leading-relaxed">{{ dc.summary[:150] }}{% if dc.summary | length > 150 %}…{% endif %}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% else %}
+
+    <!-- Monitor: Chart + History (unchanged) -->
     <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
       <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">HISTORICAL VALUES</h2>
       {% set chart_runs = runs | selectattr('value', 'ne', none) | list %}
@@ -160,12 +246,15 @@
       </div>
       {% endif %}
     </div>
+
+    {% endif %}
   </div>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
+{% if signal.signal_type != "digest" %}
 {% set chart_runs = runs | selectattr('value', 'ne', none) | list %}
 {% if chart_runs and signal.chart_type != 'flag' %}
 <script>
@@ -210,5 +299,6 @@ new Chart(ctx, {
   }
 });
 </script>
+{% endif %}
 {% endif %}
 {% endblock %}

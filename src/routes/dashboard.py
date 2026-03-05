@@ -46,16 +46,29 @@ async def signal_detail(request: Request, signal_id: PydanticObjectId, current_u
     from src.templates_config import templates
     from src.models.signal import Signal
     from src.models.signal_run import SignalRun
+    import json
+
     signal = await Signal.get(signal_id)
     if not signal or signal.user_id != current_user.id:
         return RedirectResponse(url="/app", status_code=303)
     runs = await SignalRun.find(
         SignalRun.signal_id == signal.id
     ).sort("-ran_at").limit(50).to_list()
+
+    latest_digest = None
+    if signal.signal_type == "digest" and runs:
+        for run in runs:
+            if run.digest_content:
+                try:
+                    latest_digest = json.loads(run.digest_content)
+                except Exception:
+                    pass
+                break
+
     return templates.TemplateResponse(
         request,
         "signal_detail.html",
-        {"signal": signal, "runs": runs, "user": current_user},
+        {"signal": signal, "runs": runs, "user": current_user, "latest_digest": latest_digest},
     )
 
 
