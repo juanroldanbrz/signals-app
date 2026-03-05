@@ -86,6 +86,62 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
     )
 
 
+class DigestPreviewRequest(PydanticBaseModel):
+    source_urls: list[str]
+    search_query: str = ""
+    extraction_query: str = ""
+
+
+@router.post("/signals/digest-preview")
+async def digest_preview(body: DigestPreviewRequest, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    from src.services.digest_executor import run_digest
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def on_progress(msg: str) -> None:
+        await queue.put({"type": "progress", "msg": msg})
+
+    # Build a temporary signal-like object (no DB insert)
+    class _TempSignal:
+        source_urls = body.source_urls
+        search_query = body.search_query or None
+        source_extraction_query = body.extraction_query
+        user_id = current_user.id
+
+    async def run_task() -> None:
+        try:
+            result = await run_digest(_TempSignal(), on_progress=on_progress)
+            if result["status"] == "error":
+                await queue.put({"type": "done", "error": result["raw_result"]})
+            else:
+                content = result["content"]
+                await queue.put({
+                    "type": "done",
+                    "summary": content.summary,
+                    "key_points": content.key_points,
+                    "sources": [s.model_dump() for s in content.sources],
+                })
+        except Exception as e:
+            await queue.put({"type": "done", "error": f"Unexpected error: {str(e)[:200]}"})
+
+    async def event_stream():
+        asyncio.create_task(run_task())
+        while True:
+            event = await queue.get()
+            event_type = event.pop("type")
+            yield f"data: {json.dumps(event)}\n\n"
+            if event_type == "done":
+                break
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.get("/signals/{signal_id}/card", response_class=HTMLResponse)
 async def get_signal_card(request: Request, signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
     if isinstance(current_user, RedirectResponse):
