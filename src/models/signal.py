@@ -14,7 +14,7 @@ class SignalStatus(str, Enum):
 class Signal(Document):
     user_id: PydanticObjectId
     name: str
-    source_url: str
+    source_url: str = ""
     source_extraction_query: str
     signal_type: Literal["monitor", "digest"] = "monitor"
     source_urls: list[str] = []
