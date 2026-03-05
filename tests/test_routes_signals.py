@@ -177,3 +177,36 @@ async def test_digest_preview_returns_error_on_failure(client):
 
     assert resp.status_code == 200
     assert "No content fetched" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Signal creation — digest type
+# ---------------------------------------------------------------------------
+
+async def test_create_digest_signal(client):
+    """POST /signals with signal_type=digest creates a digest signal with source_urls."""
+    c, user = client
+
+    resp = await c.post(
+        "/signals",
+        data={
+            "name": "AI Digest",
+            "signal_type": "digest",
+            "source_url": "",
+            "source_urls_json": '["https://example.com/ai", "https://example.com/ml"]',
+            "source_extraction_query": "Latest AI research",
+            "search_query": "AI research 2026",
+            "chart_type": "line",
+            "interval_minutes": "60",
+        },
+    )
+
+    # Should redirect to /app (HTMX or plain)
+    assert resp.status_code in (200, 303)
+
+    signal = await Signal.find_one(Signal.user_id == user.id)
+    assert signal is not None
+    assert signal.signal_type == "digest"
+    assert signal.source_urls == ["https://example.com/ai", "https://example.com/ml"]
+    assert signal.search_query == "AI research 2026"
+    assert signal.source_extraction_query == "Latest AI research"

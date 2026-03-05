@@ -158,7 +158,10 @@ async def create_signal(
     request: Request,
     current_user: User = Depends(get_current_user),
     name: Annotated[str, Form()] = ...,
-    source_url: Annotated[str, Form()] = ...,
+    signal_type: Annotated[str, Form()] = "monitor",
+    source_url: Annotated[str, Form()] = "",
+    source_urls_json: Annotated[str, Form()] = "[]",
+    search_query: Annotated[str, Form()] = "",
     source_extraction_query: Annotated[str, Form()] = ...,
     chart_type: Annotated[str, Form()] = "line",
     interval_minutes: Annotated[int, Form()] = 60,
@@ -166,6 +169,11 @@ async def create_signal(
 ):
     if isinstance(current_user, RedirectResponse):
         return current_user
+
+    try:
+        parsed_urls = json.loads(source_urls_json) if source_urls_json else []
+    except Exception:
+        parsed_urls = []
 
     if current_user.subscription_type == "FREE":
         existing_count = await Signal.find(Signal.user_id == current_user.id).count()
@@ -179,14 +187,17 @@ async def create_signal(
     signal = Signal(
         user_id=current_user.id,
         name=name,
+        signal_type=signal_type,
         source_url=source_url,
+        source_urls=parsed_urls,
+        search_query=search_query or None,
         source_extraction_query=source_extraction_query,
         chart_type=chart_type,
         interval_minutes=interval_minutes,
     )
     await signal.insert()
 
-    if source_initial_value:
+    if signal_type == "monitor" and source_initial_value:
         try:
             initial_value = float(source_initial_value)
             run = SignalRun(
