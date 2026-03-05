@@ -45,6 +45,7 @@ async def _run_signal_job(signal_id: str):
     from src.models.app_event import AppEvent
     from src.models.user import User
     from src.services.executor import run_signal
+    from src.services.digest_executor import run_digest
     from src.services.notify import send_email_alert, send_telegram_alert
 
     signal = await Signal.get(signal_id)
@@ -52,11 +53,16 @@ async def _run_signal_job(signal_id: str):
         return
 
     try:
-        result = await run_signal(signal)
-        value = result["value"]
+        if signal.signal_type == "digest":
+            result = await run_digest(signal)
+        else:
+            result = await run_signal(signal)
+
+        value = result.get("value")
+        digest_content_str = result.get("digest_content")
 
         alert_triggered = False
-        if value is not None and signal.alert_enabled:
+        if signal.signal_type == "monitor" and value is not None and signal.alert_enabled:
             alert_triggered = evaluate_condition(
                 signal.condition_type,
                 signal.condition_threshold,
@@ -71,6 +77,7 @@ async def _run_signal_job(signal_id: str):
             alert_triggered=alert_triggered,
             raw_result=result["raw_result"],
             status=result["status"],
+            digest_content=digest_content_str,
         )
         await run.insert()
 
@@ -86,7 +93,7 @@ async def _run_signal_job(signal_id: str):
             signal.consecutive_errors = 0
             signal.status = SignalStatus.ACTIVE
 
-        if alert_triggered:
+        if alert_triggered and signal.signal_type == "monitor":
             condition = _condition_description(signal)
             signal_url = f"https://watchsignal.app/app/signals/{signal.id}"
 
