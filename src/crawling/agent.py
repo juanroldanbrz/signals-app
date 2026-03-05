@@ -1,5 +1,8 @@
 import re
 from collections.abc import Callable, Awaitable
+from datetime import datetime, timezone
+from bs4 import BeautifulSoup, Comment
+import html2text as _html2text
 from playwright.async_api import async_playwright
 from src.crawling.actions import (
     accept_cookies,
@@ -17,6 +20,51 @@ type ProgressCallback = Callable[[str], Awaitable[None]] | None
 async def _emit(msg: str, on_progress: ProgressCallback) -> None:
     if on_progress is not None:
         await on_progress(msg)
+
+
+_MAX_TEXT_CHARS = 32_000
+
+
+def _html_to_markdown(html: str) -> str:
+    """Strip boilerplate tags and convert HTML to clean markdown."""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "iframe"]):
+        tag.decompose()
+    for comment in soup.find_all(string=lambda t: isinstance(t, Comment)):
+        comment.extract()
+    converter = _html2text.HTML2Text()
+    converter.ignore_links = False
+    converter.ignore_images = True
+    converter.body_width = 0
+    return converter.handle(str(soup))[:_MAX_TEXT_CHARS]
+
+
+async def crawl_text(url: str) -> dict:
+    """
+    Navigate to URL with Playwright, extract full page text as clean markdown.
+    Returns dict with keys: text, title, url, fetched_at, and optionally error.
+    """
+    fetched_at = datetime.now(timezone.utc).isoformat()
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            try:
+                await page.goto(url, wait_until="load", timeout=30000)
+            except Exception:
+                pass
+            await page.wait_for_timeout(1000)
+            html = await page.content()
+            title = await page.title()
+            await browser.close()
+        return {
+            "text": _html_to_markdown(html),
+            "title": title,
+            "url": url,
+            "fetched_at": fetched_at,
+        }
+    except Exception as e:
+        return {"text": "", "title": "", "url": url, "fetched_at": fetched_at, "error": str(e)[:200]}
 
 
 async def _parse_from_text(
