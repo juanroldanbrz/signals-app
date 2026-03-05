@@ -61,6 +61,13 @@
     }
     .htmx-indicator { display: none; }
     .htmx-request .htmx-indicator { display: inline; }
+    /* Digest markdown rendering */
+    .prose-digest p { margin-bottom: 0.5rem; color: #d1d5db; font-size: 0.875rem; line-height: 1.6; }
+    .prose-digest ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+    .prose-digest li { color: #9ca3af; font-size: 0.75rem; margin-bottom: 0.25rem; font-family: 'JetBrains Mono', monospace; }
+    .prose-digest strong { color: #e5e7eb; font-weight: 600; }
+    .prose-digest a { color: #00cfff; text-decoration: underline; }
+    .prose-digest h1, .prose-digest h2, .prose-digest h3 { color: #e5e7eb; font-weight: 700; margin-bottom: 0.5rem; }
   </style>
   {% block head %}{% endblock %}
 </head>

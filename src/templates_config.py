@@ -1,4 +1,6 @@
 import json as _json
+import markdown as _markdown
+from markupsafe import Markup
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
 
@@ -18,6 +20,13 @@ def _fromjson_filter(value):
         return {}
 
 
+def _markdown_filter(value):
+    if not value:
+        return Markup("")
+    return Markup(_markdown.markdown(value, extensions=["nl2br"]))
+
+
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.filters["strftime"] = _strftime_filter
 templates.env.filters["fromjson"] = _fromjson_filter
+templates.env.filters["mdrender"] = _markdown_filter

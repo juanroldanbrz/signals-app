@@ -58,8 +58,11 @@ async def run_digest(signal: Signal, on_progress=None) -> dict:
     prompt = (
         f"Today is {today}. Summarise the following content for a quick briefing.\n"
         f"Topic: {signal.source_extraction_query or 'general summary'}\n\n"
-        f"IMPORTANT: Include specific dates you find in the content. "
-        f"Do not invent facts. Always cite the source URL.\n\n"
+        f"STRICT FORMAT RULES:\n"
+        f"- summary: exactly 2-3 sentences. No more.\n"
+        f"- key_points: exactly 2-3 bullets. Each bullet max 15 words.\n"
+        f"- sources: one entry per crawled URL.\n"
+        f"Do not invent facts. Include specific dates found in the content.\n\n"
         f"---\n\n" + "\n\n---\n\n".join(sources_text)
     )
 

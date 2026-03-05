@@ -152,7 +152,7 @@
     {% if latest_digest %}
     <div class="p-5 rounded-lg border border-dark-border bg-dark-card">
       <h2 class="text-xs font-mono text-gray-500 tracking-wider mb-4">LATEST DIGEST</h2>
-      <p class="text-gray-300 text-sm leading-relaxed mb-4">{{ latest_digest.summary }}</p>
+      <div class="text-gray-300 text-sm leading-relaxed mb-4 prose-digest">{{ latest_digest.summary | mdrender }}</div>
 
       {% if latest_digest.key_points %}
       <h3 class="text-xs font-mono text-gray-500 tracking-wider mb-2">KEY POINTS</h3>
