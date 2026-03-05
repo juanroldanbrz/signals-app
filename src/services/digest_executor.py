@@ -56,14 +56,14 @@ async def run_digest(signal: Signal, on_progress=None) -> dict:
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     prompt = (
-        f"Today is {today}. Summarise the following content for a quick briefing.\n"
-        f"Topic: {signal.source_extraction_query or 'general summary'}\n\n"
-        f"STRICT FORMAT RULES:\n"
-        f"- summary: exactly 2-3 sentences. No more.\n"
-        f"- key_points: exactly 2-3 bullets. Each bullet max 15 words.\n"
+        f"Today is {today}. You are writing a direct briefing on: {signal.source_extraction_query or 'the content below'}.\n\n"
+        f"STRICT RULES:\n"
+        f"- Write AS IF you are presenting the information yourself — never say 'this page', 'this repo', 'this article', 'the website', 'the repository' or reference the source by name.\n"
+        f"- summary: exactly 2-3 sentences. State the actual facts, tips, or news — not what the source is about.\n"
+        f"- key_points: exactly 2-3 bullets. Each bullet one concrete fact or tip, max 15 words.\n"
         f"- sources: one entry per crawled URL.\n"
-        f"Do not invent facts. Include specific dates found in the content.\n\n"
-        f"---\n\n" + "\n\n---\n\n".join(sources_text)
+        f"- Do not invent facts. Include specific dates found in the content.\n\n"
+        f"CONTENT:\n\n" + "\n\n---\n\n".join(sources_text)
     )
 
     await emit("Summarising with AI ...")

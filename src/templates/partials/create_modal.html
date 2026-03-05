@@ -279,6 +279,7 @@
               <input type="hidden" name="interval_minutes" id="dsf-interval" />
               <input type="hidden" name="source_url" value="" />
               <input type="hidden" name="chart_type" value="line" />
+              <input type="hidden" name="initial_digest_json" id="dsf-initial-digest" />
 
               <div class="flex gap-3">
                 <button type="button" onclick="digestFlipBack()"
@@ -615,6 +616,11 @@
     document.getElementById('dsf-urls').value = JSON.stringify(urls);
     document.getElementById('dsf-search-query').value = braveQuery;
     document.getElementById('dsf-interval').value = interval;
+    document.getElementById('dsf-initial-digest').value = JSON.stringify({
+      summary: data.summary || '',
+      key_points: data.key_points || [],
+      sources: data.sources || [],
+    });
 
     document.getElementById('digest-flip-inner').style.transform = 'rotateY(180deg)';
   };

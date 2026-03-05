@@ -180,6 +180,7 @@ async def create_signal(
     chart_type: Annotated[str, Form()] = "line",
     interval_minutes: Annotated[int, Form()] = 60,
     source_initial_value: Annotated[str, Form()] = "",
+    initial_digest_json: Annotated[str, Form()] = "",
 ):
     if isinstance(current_user, RedirectResponse):
         return current_user
@@ -226,6 +227,21 @@ async def create_signal(
             signal.last_value = initial_value
             await signal.save()
         except ValueError:
+            pass
+
+    if signal_type == "digest" and initial_digest_json:
+        try:
+            run = SignalRun(
+                user_id=current_user.id,
+                signal_id=signal.id,
+                value=None,
+                alert_triggered=False,
+                status=RunStatus.OK,
+                raw_result="preview at creation",
+                digest_content=initial_digest_json,
+            )
+            await run.insert()
+        except Exception:
             pass
 
     signal.next_run_at = datetime.now(timezone.utc) + timedelta(minutes=signal.interval_minutes)
