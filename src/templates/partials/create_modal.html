@@ -18,12 +18,30 @@
     <!-- Body: scrollable -->
     <div class="overflow-y-auto flex-1">
 
-      <!-- Flip card -->
-      <div style="perspective: 1000px;">
+      <!-- Phase 0: Type picker -->
+      <div id="phase-type-picker" class="px-6 py-5">
+        <p class="text-xs font-mono text-gray-500 mb-4 tracking-wider">CHOOSE SIGNAL TYPE</p>
+        <div class="grid grid-cols-2 gap-4">
+          <button onclick="showMonitorForm()"
+            class="p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-green/40 hover:bg-neon-green/5 transition-all text-left">
+            <div class="text-neon-green font-mono font-bold text-sm mb-2">MONITOR</div>
+            <p class="text-gray-500 text-xs font-mono leading-relaxed">Track a number. Get alerted when BTC drops below $50k, stock goes out, uptime falls.</p>
+          </button>
+          <button onclick="showDigestForm()"
+            class="p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-blue/40 hover:bg-neon-blue/5 transition-all text-left">
+            <div class="text-neon-blue font-mono font-bold text-sm mb-2">DIGEST</div>
+            <p class="text-gray-500 text-xs font-mono leading-relaxed">Summarize content. Get a daily briefing on AI news, competitor updates, any topic.</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- Phase 1a: Monitor form (unchanged) -->
+      <div id="phase-monitor" class="hidden" style="perspective: 1000px;">
         <div id="flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
 
-          <!-- FRONT: Form -->
+          <!-- FRONT: Monitor form -->
           <div style="backface-visibility: hidden;" class="px-6 py-5">
+            <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
             <div class="space-y-4">
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
@@ -95,7 +113,7 @@
             </div>
           </div>
 
-          <!-- BACK: Preview -->
+          <!-- BACK: Monitor preview -->
           <div id="card-back" style="backface-visibility: hidden; transform: rotateY(180deg); top: 0; left: 0; right: 0;" class="px-6 py-5 absolute">
             <div class="border border-dark-border rounded p-4 space-y-3 text-xs font-mono mb-5">
               <div class="text-gray-500 tracking-wider mb-3">PREVIEW RESULT</div>
@@ -119,6 +137,7 @@
 
             <form id="save-form" method="POST" action="/signals"
                   hx-post="/signals" hx-target="#create-modal" hx-swap="outerHTML">
+              <input type="hidden" name="signal_type" value="monitor" />
               <input type="hidden" name="name" id="sf-name" />
               <input type="hidden" name="source_url" id="sf-url" />
               <input type="hidden" name="source_extraction_query" id="sf-query" />
@@ -142,12 +161,161 @@
         </div>
       </div>
 
+      <!-- Phase 1b: Digest form -->
+      <div id="phase-digest" class="hidden" style="perspective: 1000px;">
+        <div id="digest-flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
+
+          <!-- FRONT: Digest form -->
+          <div style="backface-visibility: hidden;" class="px-6 py-5">
+            <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
+                <input id="d-name" type="text" placeholder="e.g. AI Safety Digest"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">TOPIC / SUMMARISATION QUERY</label>
+                <textarea id="d-query" rows="2" placeholder="e.g. Latest news about AI safety research"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50 resize-none"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-2">URLS TO CRAWL</label>
+                <div id="d-url-list" class="space-y-2 mb-2">
+                  <div class="flex gap-2">
+                    <input type="url" placeholder="https://..." data-url-input
+                      class="flex-1 bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" />
+                    <button type="button" onclick="removeUrlRow(this)" class="text-gray-600 hover:text-red-400 text-xs font-mono px-2 border border-dark-border rounded transition-colors">✕</button>
+                  </div>
+                </div>
+                <button type="button" onclick="addUrlRow()"
+                  class="text-neon-blue text-xs font-mono hover:text-white transition-colors">+ ADD URL</button>
+              </div>
+              {% if brave_enabled %}
+              <div>
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" id="d-brave-toggle" onchange="toggleBraveSearch(this.checked)"
+                    class="accent-neon-blue w-4 h-4 cursor-pointer" />
+                  <span class="text-xs font-mono text-gray-400">Include Brave Search results</span>
+                </label>
+                <div id="d-brave-query-row" class="hidden mt-2">
+                  <input id="d-brave-query" type="text" placeholder="e.g. AI safety news 2026"
+                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" />
+                </div>
+              </div>
+              {% endif %}
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
+                {% if user.subscription_type == "FREE" %}
+                <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
+                  <span>24h</span>
+                  <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
+                     class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
+                </div>
+                <input type="hidden" id="d-interval" value="1440" />
+                {% else %}
+                <select id="d-interval"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50">
+                  <option value="60">1h</option>
+                  <option value="120">2h</option>
+                  <option value="360">6h</option>
+                  <option value="720">12h</option>
+                  <option value="1440">24h</option>
+                </select>
+                {% endif %}
+              </div>
+              <p id="digest-error" class="hidden text-red-400 text-xs font-mono"></p>
+              <button id="digest-preview-btn" onclick="runDigestPreview()"
+                class="w-full py-2 bg-neon-blue/10 border border-neon-blue/30 text-neon-blue text-xs font-mono rounded hover:bg-neon-blue/20 transition-all">
+                PREVIEW
+              </button>
+            </div>
+
+            <!-- Console for digest preview -->
+            <div id="digest-console" class="hidden mt-4">
+              <div class="bg-black border border-dark-border rounded overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-1.5 border-b border-dark-border">
+                  <span class="text-xs text-gray-600 font-mono tracking-wider">CONSOLE</span>
+                  <span id="digest-console-spinner" class="hidden text-neon-blue text-xs font-mono animate-pulse">●</span>
+                </div>
+                <div id="digest-console-output"
+                     class="px-3 py-2 font-mono text-xs text-neon-blue leading-relaxed h-56 overflow-y-auto overflow-x-hidden break-all">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BACK: Digest preview result -->
+          <div id="digest-card-back" style="backface-visibility: hidden; transform: rotateY(180deg); top: 0; left: 0; right: 0;" class="px-6 py-5 absolute">
+            <div class="p-3 rounded border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 text-xs font-mono mb-4">
+              ⚠ Unverified — AI-generated content. Always verify sources before acting on this information.
+            </div>
+            <div class="border border-dark-border rounded p-4 space-y-4 text-xs font-mono mb-5 max-h-64 overflow-y-auto">
+              <div class="text-gray-500 tracking-wider">DIGEST PREVIEW</div>
+              <p id="digest-preview-summary" class="text-gray-300 text-xs leading-relaxed"></p>
+              <div id="digest-preview-points" class="hidden">
+                <p class="text-gray-500 tracking-wider mb-1">KEY POINTS</p>
+                <ul id="digest-preview-points-list" class="space-y-1"></ul>
+              </div>
+              <div id="digest-preview-sources" class="hidden">
+                <p class="text-gray-500 tracking-wider mb-1">SOURCES</p>
+                <div id="digest-preview-sources-list" class="space-y-1"></div>
+              </div>
+            </div>
+
+            <form id="digest-save-form" method="POST" action="/signals"
+                  hx-post="/signals" hx-target="#create-modal" hx-swap="outerHTML">
+              <input type="hidden" name="signal_type" value="digest" />
+              <input type="hidden" name="name" id="dsf-name" />
+              <input type="hidden" name="source_extraction_query" id="dsf-query" />
+              <input type="hidden" name="source_urls_json" id="dsf-urls" />
+              <input type="hidden" name="search_query" id="dsf-search-query" />
+              <input type="hidden" name="interval_minutes" id="dsf-interval" />
+              <input type="hidden" name="source_url" value="" />
+              <input type="hidden" name="chart_type" value="line" />
+
+              <div class="flex gap-3">
+                <button type="button" onclick="digestFlipBack()"
+                  class="flex-1 py-2 border border-dark-border text-gray-500 text-xs font-mono rounded hover:border-gray-500 hover:text-gray-300 transition-all">
+                  ← TRY AGAIN
+                </button>
+                <button type="submit"
+                  class="flex-1 py-2 bg-neon-blue text-black font-bold text-xs rounded tracking-wider hover:bg-neon-blue/90 transition-all">
+                  SAVE SIGNAL
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
 
 <script>
 (function() {
+  // ─── Phase navigation ───────────────────────────────────────────────────────
+  window.showTypePicker = function() {
+    document.getElementById('phase-type-picker').classList.remove('hidden');
+    document.getElementById('phase-monitor').classList.add('hidden');
+    document.getElementById('phase-digest').classList.add('hidden');
+  };
+
+  window.showMonitorForm = function() {
+    document.getElementById('phase-type-picker').classList.add('hidden');
+    document.getElementById('phase-monitor').classList.remove('hidden');
+    document.getElementById('phase-digest').classList.add('hidden');
+  };
+
+  window.showDigestForm = function() {
+    document.getElementById('phase-type-picker').classList.add('hidden');
+    document.getElementById('phase-monitor').classList.add('hidden');
+    document.getElementById('phase-digest').classList.remove('hidden');
+  };
+
+  // ─── Monitor form helpers ────────────────────────────────────────────────────
   function consoleLog(msg, cls) {
     const output = document.getElementById('console-output');
     const line = document.createElement('div');
@@ -218,7 +386,6 @@
       return;
     }
 
-    // Read SSE stream
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -258,7 +425,6 @@
 
     consoleLog('✓ Done.', 'text-gray-500');
 
-    // Populate back face
     const valueEl = document.getElementById('preview-value');
     if (chartType === 'flag') {
       valueEl.textContent = data.flag ? '✓ TRUE' : '✗ FALSE';
@@ -277,7 +443,6 @@
       document.getElementById('preview-note-row').classList.remove('hidden');
     }
 
-    // Populate hidden save form fields
     let hostname;
     try { hostname = new URL(url).hostname; } catch { hostname = url; }
     document.getElementById('sf-name').value = name || hostname;
@@ -288,6 +453,164 @@
     document.getElementById('sf-initial-value').value = data.value != null ? data.value : '';
 
     document.getElementById('flip-inner').style.transform = 'rotateY(180deg)';
+  };
+
+  // ─── Digest form helpers ─────────────────────────────────────────────────────
+  window.addUrlRow = function() {
+    const list = document.getElementById('d-url-list');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    row.innerHTML = '<input type="url" placeholder="https://..." data-url-input class="flex-1 bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" /><button type="button" onclick="removeUrlRow(this)" class="text-gray-600 hover:text-red-400 text-xs font-mono px-2 border border-dark-border rounded transition-colors">✕</button>';
+    list.appendChild(row);
+  };
+
+  window.removeUrlRow = function(btn) {
+    const list = document.getElementById('d-url-list');
+    if (list.children.length > 1) {
+      btn.closest('.flex').remove();
+    }
+  };
+
+  window.toggleBraveSearch = function(checked) {
+    const row = document.getElementById('d-brave-query-row');
+    if (row) row.classList.toggle('hidden', !checked);
+  };
+
+  function digestConsoleLog(msg, cls) {
+    const output = document.getElementById('digest-console-output');
+    const line = document.createElement('div');
+    line.className = cls || 'text-neon-blue';
+    line.textContent = '› ' + msg;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  window.digestFlipBack = function() {
+    document.getElementById('digest-flip-inner').style.transform = '';
+    document.getElementById('digest-error').classList.add('hidden');
+    document.getElementById('digest-console-output').innerHTML = '';
+    document.getElementById('digest-console').classList.add('hidden');
+    document.getElementById('digest-console-spinner').classList.add('hidden');
+  };
+
+  window.runDigestPreview = async function() {
+    const urls = Array.from(document.querySelectorAll('[data-url-input]'))
+      .map(el => el.value.trim()).filter(Boolean);
+    const query = document.getElementById('d-query').value.trim();
+    const name = document.getElementById('d-name').value.trim();
+    const interval = document.getElementById('d-interval').value;
+    const errEl = document.getElementById('digest-error');
+
+    const braveToggle = document.getElementById('d-brave-toggle');
+    const braveQuery = braveToggle && braveToggle.checked
+      ? (document.getElementById('d-brave-query') ? document.getElementById('d-brave-query').value.trim() : '')
+      : '';
+
+    if (urls.length === 0) {
+      errEl.textContent = 'At least one URL is required.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('digest-preview-btn');
+    btn.disabled = true;
+    btn.textContent = '⟳ PREVIEWING...';
+    errEl.classList.add('hidden');
+    document.getElementById('digest-console-output').innerHTML = '';
+    document.getElementById('digest-console').classList.remove('hidden');
+    document.getElementById('digest-console-spinner').classList.remove('hidden');
+
+    let res;
+    try {
+      res = await fetch('/signals/digest-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_urls: urls, extraction_query: query, search_query: braveQuery }),
+      });
+    } catch (e) {
+      document.getElementById('digest-console-spinner').classList.add('hidden');
+      errEl.textContent = '⚠ Connection error. Please try again.';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'PREVIEW';
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let data = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.msg !== undefined) {
+            digestConsoleLog(event.msg);
+          } else {
+            data = event;
+          }
+        } catch (_) {}
+      }
+    }
+
+    document.getElementById('digest-console-spinner').classList.add('hidden');
+    btn.disabled = false;
+    btn.textContent = 'PREVIEW';
+
+    if (!data || data.error) {
+      const msg = data ? data.error : 'No response received.';
+      digestConsoleLog('⚠ ' + msg, 'text-red-400');
+      return;
+    }
+
+    digestConsoleLog('✓ Done.', 'text-gray-500');
+
+    // Populate digest back face
+    document.getElementById('digest-preview-summary').textContent = data.summary || '';
+
+    const pointsList = document.getElementById('digest-preview-points-list');
+    pointsList.innerHTML = '';
+    if (data.key_points && data.key_points.length > 0) {
+      data.key_points.forEach(pt => {
+        const li = document.createElement('li');
+        li.className = 'text-gray-400 text-xs font-mono flex gap-2';
+        li.innerHTML = '<span class="text-neon-blue">›</span>' + pt;
+        pointsList.appendChild(li);
+      });
+      document.getElementById('digest-preview-points').classList.remove('hidden');
+    }
+
+    const sourcesList = document.getElementById('digest-preview-sources-list');
+    sourcesList.innerHTML = '';
+    if (data.sources && data.sources.length > 0) {
+      data.sources.forEach(src => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-2 text-xs font-mono';
+        div.innerHTML = '<a href="' + src.url + '" target="_blank" class="text-neon-blue hover:underline flex-1 truncate">' + (src.title || src.url) + '</a>' +
+          (src.date ? '<span class="text-gray-700 flex-shrink-0">' + src.date + '</span>' : '');
+        sourcesList.appendChild(div);
+      });
+      document.getElementById('digest-preview-sources').classList.remove('hidden');
+    }
+
+    // Populate hidden save form
+    document.getElementById('dsf-name').value = name || 'Digest';
+    document.getElementById('dsf-query').value = query;
+    document.getElementById('dsf-urls').value = JSON.stringify(urls);
+    document.getElementById('dsf-search-query').value = braveQuery;
+    document.getElementById('dsf-interval').value = interval;
+
+    document.getElementById('digest-flip-inner').style.transform = 'rotateY(180deg)';
   };
 })();
 </script>

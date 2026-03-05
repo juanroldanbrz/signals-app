@@ -77,8 +77,10 @@ async def create_modal_partial(request: Request, current_user: User = Depends(ge
     if isinstance(current_user, RedirectResponse):
         return current_user
     from src.templates_config import templates
+    from src.models.app_config import AppConfig
+    config = await AppConfig.get_for_user(current_user.id)
     return templates.TemplateResponse(
         request,
         "partials/create_modal.html",
-        {"user": current_user},
+        {"user": current_user, "brave_enabled": config.brave_search_enabled and bool(config.brave_api_key)},
     )
