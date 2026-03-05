@@ -192,21 +192,6 @@
                   class="text-neon-blue text-xs font-mono hover:text-white transition-colors">+ ADD URL</button>
               </div>
               <div>
-                {% if brave_enabled %}
-                <label class="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" id="d-brave-toggle" onchange="toggleBraveSearch(this.checked)"
-                    class="accent-neon-blue w-4 h-4 cursor-pointer" />
-                  <span class="text-xs font-mono text-gray-400">Include Brave Search results</span>
-                </label>
-                <div id="d-brave-query-row" class="hidden mt-2">
-                  <input id="d-brave-query" type="text" placeholder="e.g. AI safety news 2026"
-                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" />
-                </div>
-                {% else %}
-                <p class="text-xs font-mono text-gray-700">Web search not available.</p>
-                {% endif %}
-              </div>
-              <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
                 {% if user.subscription_type == "FREE" %}
                 <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
@@ -474,11 +459,6 @@
     }
   };
 
-  window.toggleBraveSearch = function(checked) {
-    const row = document.getElementById('d-brave-query-row');
-    if (row) row.classList.toggle('hidden', !checked);
-  };
-
   function digestConsoleLog(msg, cls) {
     const output = document.getElementById('digest-console-output');
     const line = document.createElement('div');
@@ -504,16 +484,7 @@
     const interval = document.getElementById('d-interval').value;
     const errEl = document.getElementById('digest-error');
 
-    const braveToggle = document.getElementById('d-brave-toggle');
-    const braveQuery = braveToggle && braveToggle.checked
-      ? (document.getElementById('d-brave-query') ? document.getElementById('d-brave-query').value.trim() : '')
-      : '';
-
-    if (urls.length === 0) {
-      errEl.textContent = 'At least one URL is required.';
-      errEl.classList.remove('hidden');
-      return;
-    }
+    const braveQuery = urls.length === 0 ? query : '';
 
     const btn = document.getElementById('digest-preview-btn');
     btn.disabled = true;

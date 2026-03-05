@@ -2,7 +2,6 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from src.config import settings
 from src.models.user import User
 from src.services.auth import get_current_user
 
@@ -81,5 +80,5 @@ async def create_modal_partial(request: Request, current_user: User = Depends(ge
     return templates.TemplateResponse(
         request,
         "partials/create_modal.html",
-        {"user": current_user, "brave_enabled": bool(settings.brave_search_api_key)},
+        {"user": current_user},
     )
