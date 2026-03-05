@@ -191,8 +191,8 @@
                 <button type="button" onclick="addUrlRow()"
                   class="text-neon-blue text-xs font-mono hover:text-white transition-colors">+ ADD URL</button>
               </div>
-              {% if brave_enabled %}
               <div>
+                {% if brave_enabled %}
                 <label class="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" id="d-brave-toggle" onchange="toggleBraveSearch(this.checked)"
                     class="accent-neon-blue w-4 h-4 cursor-pointer" />
@@ -202,8 +202,14 @@
                   <input id="d-brave-query" type="text" placeholder="e.g. AI safety news 2026"
                     class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" />
                 </div>
+                {% else %}
+                <p class="text-xs font-mono text-gray-700">
+                  Web search disabled —
+                  <a href="/app/config" class="text-neon-blue hover:underline">add a Brave API key in Config</a>
+                  to also search the web.
+                </p>
+                {% endif %}
               </div>
-              {% endif %}
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
                 {% if user.subscription_type == "FREE" %}
