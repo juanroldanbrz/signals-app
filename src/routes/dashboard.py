@@ -14,11 +14,28 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_u
         return current_user
     from src.templates_config import templates
     from src.models.signal import Signal
+    from src.models.signal_run import SignalRun
+    import json
+
     signals = await Signal.find(Signal.user_id == current_user.id).sort("-created_at").to_list()
+
+    digest_summaries: dict[str, str] = {}
+    for sig in signals:
+        if sig.signal_type == "digest":
+            latest_run = await SignalRun.find(
+                SignalRun.signal_id == sig.id
+            ).sort("-ran_at").limit(1).first_or_none()
+            if latest_run and latest_run.digest_content:
+                try:
+                    data = json.loads(latest_run.digest_content)
+                    digest_summaries[str(sig.id)] = data.get("summary", "")
+                except Exception:
+                    pass
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"signals": signals, "user": current_user},
+        {"signals": signals, "user": current_user, "digest_summaries": digest_summaries},
     )
 
 

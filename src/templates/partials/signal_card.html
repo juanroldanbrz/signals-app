@@ -13,6 +13,9 @@
         {% if signal.alert_triggered %}
         <span class="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-mono">ALERT</span>
         {% endif %}
+        {% if signal.signal_type == "digest" %}
+        <span class="text-xs px-2 py-0.5 rounded bg-neon-blue/10 text-neon-blue border border-neon-blue/20 font-mono">DIGEST</span>
+        {% endif %}
       </div>
       <h3 class="font-bold text-white text-sm">{{ signal.name }}</h3>
     </div>
@@ -23,6 +26,18 @@
     {{ signal.source_extraction_query[:80] }}{% if signal.source_extraction_query | length > 80 %}...{% endif %}
   </p>
 
+  {% if signal.signal_type == "digest" %}
+  {# Digest: show summary preview #}
+  {% set summary = digest_summaries.get(signal.id | string, "") if digest_summaries is defined else "" %}
+  <div class="mb-4">
+    {% if summary %}
+    <p class="text-gray-400 text-xs font-mono leading-relaxed">{{ summary[:200] }}{% if summary | length > 200 %}…{% endif %}</p>
+    {% else %}
+    <span class="text-gray-600 text-sm font-mono">— no digest yet —</span>
+    {% endif %}
+  </div>
+  {% else %}
+  {# Monitor: show numeric value #}
   <div class="flex items-end gap-1 mb-4">
     {% if signal.last_value is not none %}
       {% if signal.chart_type == 'flag' %}
@@ -36,6 +51,7 @@
     <span class="text-gray-600 text-sm font-mono">— no data yet —</span>
     {% endif %}
   </div>
+  {% endif %}
 
   <div class="flex items-center justify-between text-xs text-gray-600 font-mono mb-4">
     <span>{% if signal.last_run_at %}checked {{ signal.last_run_at | strftime('%H:%M') }}{% else %}not run yet{% endif %}</span>
@@ -43,6 +59,7 @@
   </div>
 
   <div class="flex items-center gap-2 border-t border-dark-border pt-3">
+    {% if signal.signal_type != "digest" %}
     <button
       hx-post="/signals/{{ signal.id }}/toggle-alert"
       hx-target="#signal-{{ signal.id }}"
@@ -54,6 +71,7 @@
       </svg>
       {% if signal.alert_enabled %}ALERTS ON{% else %}ALERTS OFF{% endif %}
     </button>
+    {% endif %}
 
     {% if running %}
     <button disabled
