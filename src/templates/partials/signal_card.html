@@ -27,11 +27,16 @@
   </p>
 
   {% if signal.signal_type == "digest" %}
-  {# Digest: show summary preview #}
-  {% set summary = digest_summaries.get(signal.id | string, "") if digest_summaries is defined else "" %}
+  {# Digest: show key points #}
+  {% set dd = digest_data.get(signal.id | string, {}) if digest_data is defined else {} %}
+  {% set points = dd.get("key_points", []) if dd else [] %}
   <div class="mb-4">
-    {% if summary %}
-    <p class="text-gray-400 text-xs font-mono leading-relaxed">{{ summary[:200] }}{% if summary | length > 200 %}…{% endif %}</p>
+    {% if points %}
+    <ul class="space-y-1">
+      {% for point in points %}
+      <li class="text-gray-400 text-xs font-mono flex gap-2"><span class="text-neon-blue">›</span>{{ point }}</li>
+      {% endfor %}
+    </ul>
     {% else %}
     <span class="text-gray-600 text-sm font-mono">— no digest yet —</span>
     {% endif %}

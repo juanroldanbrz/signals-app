@@ -19,7 +19,7 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_u
 
     signals = await Signal.find(Signal.user_id == current_user.id).sort("-created_at").to_list()
 
-    digest_summaries: dict[str, str] = {}
+    digest_data: dict[str, dict] = {}
     for sig in signals:
         if sig.signal_type == "digest":
             latest_run = await SignalRun.find(
@@ -28,14 +28,14 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_u
             if latest_run and latest_run.digest_content:
                 try:
                     data = json.loads(latest_run.digest_content)
-                    digest_summaries[str(sig.id)] = data.get("summary", "")
+                    digest_data[str(sig.id)] = {"key_points": data.get("key_points", [])}
                 except Exception:
                     pass
 
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"signals": signals, "user": current_user, "digest_summaries": digest_summaries},
+        {"signals": signals, "user": current_user, "digest_data": digest_data},
     )
 
 

@@ -152,7 +152,7 @@ async def get_signal_card(request: Request, signal_id: PydanticObjectId, current
     if not signal or signal.user_id != current_user.id:
         return HTMLResponse(status_code=404)
 
-    digest_summaries: dict[str, str] = {}
+    digest_data: dict[str, dict] = {}
     if signal.signal_type == "digest":
         latest_run = await SignalRun.find(
             SignalRun.signal_id == signal.id
@@ -160,11 +160,11 @@ async def get_signal_card(request: Request, signal_id: PydanticObjectId, current
         if latest_run and latest_run.digest_content:
             try:
                 data = json.loads(latest_run.digest_content)
-                digest_summaries[str(signal.id)] = data.get("summary", "")
+                digest_data[str(signal.id)] = {"key_points": data.get("key_points", [])}
             except Exception:
                 pass
 
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_summaries": digest_summaries})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": digest_data})
 
 
 @router.post("/signals", response_class=HTMLResponse)
@@ -277,7 +277,7 @@ async def toggle_alert(request: Request, signal_id: PydanticObjectId, current_us
         return HTMLResponse(status_code=404)
     signal.alert_enabled = not signal.alert_enabled
     await signal.save()
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_summaries": {}})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": {}})
 
 
 @router.post("/signals/{signal_id}/toggle-alert-page")
@@ -302,7 +302,7 @@ async def run_now(request: Request, signal_id: PydanticObjectId, current_user: U
     signal.next_run_at = datetime.now(timezone.utc) + timedelta(minutes=signal.interval_minutes)
     await signal.save()
     asyncio.create_task(_run_signal_job(str(signal_id)))
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "running": True, "digest_summaries": {}})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "running": True, "digest_data": {}})
 
 
 @router.post("/signals/{signal_id}/update", response_class=HTMLResponse)
