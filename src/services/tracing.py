@@ -179,7 +179,7 @@ async def gemini_vision(name: str, image: bytes, prompt: str, response_format=No
     return text
 
 
-async def gemini_text(name: str, prompt: str) -> str:
+async def gemini_text(name: str, prompt: str, response_format=None) -> str:
     model = settings.llm_model
     start = _now()
     kwargs = dict(
@@ -188,6 +188,8 @@ async def gemini_text(name: str, prompt: str) -> str:
     )
     if (key := _api_key()) is not None:
         kwargs["api_key"] = key
+    if response_format is not None:
+        kwargs["response_format"] = response_format
     response = await litellm.acompletion(**kwargs)
     text = response.choices[0].message.content
     _log_generation(name, model, {"prompt": prompt[:1000]}, text, start)
