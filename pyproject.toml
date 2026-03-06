@@ -30,9 +30,13 @@ dev = [
     "mongomock-motor>=0.0.36",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
+    "pytest-playwright>=0.7.0",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "-m 'not integration'"
-markers = ["integration: live network tests — run with: pytest -m integration"]
+addopts = "-m 'not integration and not e2e'"
+markers = [
+    "integration: live network tests — run with: pytest -m integration",
+    "e2e: end-to-end browser tests — run with: pytest tests/e2e -m e2e -s",
+]
