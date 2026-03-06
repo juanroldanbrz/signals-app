@@ -21,9 +21,11 @@ _LLM_KEY_AVAILABLE = bool(
     os.environ.get("LLM_API_KEY") and os.environ.get("LLM_API_KEY") != "test-key"
 )
 _BRAVE_KEY_AVAILABLE = bool(os.environ.get("BRAVE_SEARCH_API_KEY"))
+_BRIGHTDATA_AVAILABLE = bool(os.environ.get("BRIGHTDATA_WSS"))
 
 needs_llm = pytest.mark.skipif(not _LLM_KEY_AVAILABLE, reason="LLM_API_KEY not set")
 needs_brave = pytest.mark.skipif(not _BRAVE_KEY_AVAILABLE, reason="BRAVE_SEARCH_API_KEY not set")
+needs_brightdata = pytest.mark.skipif(not _BRIGHTDATA_AVAILABLE, reason="BRIGHTDATA_WSS not set")
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -48,8 +50,19 @@ def open_modal(page: Page) -> None:
 
 
 def go_monitor(page: Page) -> None:
+    """Navigate to the URL monitor form (MONITOR → MY URL)."""
     page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible(timeout=3_000)
+    page.locator("#phase-monitor-source").get_by_text("MY URL").click()
     expect(page.locator("#phase-monitor")).to_be_visible(timeout=3_000)
+
+
+def go_flight_scanner(page: Page) -> None:
+    """Navigate to the Flight Scanner monitor form (MONITOR → FLIGHT SCANNER)."""
+    page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible(timeout=3_000)
+    page.locator("#phase-monitor-source").get_by_text("FLIGHT SCANNER").click()
+    expect(page.locator("#phase-sky-monitor")).to_be_visible(timeout=3_000)
 
 
 def go_digest(page: Page) -> None:
@@ -100,12 +113,21 @@ def test_monitor_form_shown_after_clicking_monitor(page: Page):
     expect(page.locator("input[name='chart-type'][value='flag']")).to_be_visible()
 
 
-def test_monitor_back_returns_to_type_picker(page: Page):
+def test_monitor_back_returns_to_source_picker(page: Page):
     open_modal(page)
     go_monitor(page)
     page.locator("#phase-monitor").get_by_text("← BACK").click()
-    expect(page.locator("#phase-type-picker")).to_be_visible()
+    expect(page.locator("#phase-monitor-source")).to_be_visible()
     expect(page.locator("#phase-monitor")).not_to_be_visible()
+
+
+def test_monitor_source_picker_back_returns_to_type_picker(page: Page):
+    open_modal(page)
+    page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible(timeout=3_000)
+    page.locator("#phase-monitor-source").get_by_text("← BACK").click()
+    expect(page.locator("#phase-type-picker")).to_be_visible()
+    expect(page.locator("#phase-monitor-source")).not_to_be_visible()
 
 
 def test_monitor_dry_run_requires_url_and_query(page: Page):
@@ -248,10 +270,14 @@ def test_monitor_console_cleared_when_navigating_back_and_forth(page: Page):
     # Trigger a validation error to cause the error element to appear
     page.click("#dry-run-btn")
     expect(page.locator("#dry-run-error")).to_be_visible()
-    # Go back to type picker and re-enter monitor
+    # Go back → source picker, then back → type picker, then re-enter monitor via MY URL
     page.locator("#phase-monitor").get_by_text("← BACK").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible()
+    page.locator("#phase-monitor-source").get_by_text("← BACK").click()
     expect(page.locator("#phase-type-picker")).to_be_visible()
     page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible()
+    page.locator("#phase-monitor-source").get_by_text("MY URL").click()
     expect(page.locator("#phase-monitor")).to_be_visible()
     # Console should be hidden, not showing stale output
     expect(page.locator("#dry-run-console")).not_to_be_visible()
@@ -418,3 +444,75 @@ def test_digest_search_online_returns_key_points(page: Page):
     expect(page.locator("#digest-preview-summary")).to_be_visible(timeout=90_000)
     summary = page.locator("#digest-preview-summary").inner_text()
     assert len(summary) > 20, f"Summary too short: {summary!r}"
+
+
+# ── Flight Scanner (monitor source picker) ────────────────────────────────────
+
+def test_monitor_source_picker_shows_url_and_flight_scanner(page: Page):
+    """Clicking MONITOR shows the source picker with MY URL and FLIGHT SCANNER."""
+    open_modal(page)
+    page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible(timeout=3_000)
+    expect(page.locator("#phase-monitor-source")).to_contain_text("MY URL")
+    expect(page.locator("#phase-monitor-source")).to_contain_text("FLIGHT SCANNER")
+
+
+def test_flight_scanner_form_shown_after_clicking_flight_scanner(page: Page):
+    """Clicking FLIGHT SCANNER shows the flight scanner form."""
+    open_modal(page)
+    go_flight_scanner(page)
+    expect(page.locator("#sky-name")).to_be_visible()
+    expect(page.locator("#sky-query")).to_be_visible()
+    expect(page.locator("#sky-dry-run-btn")).to_be_visible()
+
+
+def test_flight_scanner_back_returns_to_source_picker(page: Page):
+    """Back button in flight scanner form returns to monitor source picker."""
+    open_modal(page)
+    go_flight_scanner(page)
+    page.locator("#phase-sky-monitor").get_by_text("← BACK").click()
+    expect(page.locator("#phase-monitor-source")).to_be_visible()
+    expect(page.locator("#phase-sky-monitor")).not_to_be_visible()
+
+
+def test_flight_scanner_dry_run_requires_query(page: Page):
+    """Clicking DRY RUN without a query shows a validation error."""
+    open_modal(page)
+    go_flight_scanner(page)
+    page.click("#sky-dry-run-btn")
+    expect(page.locator("#sky-error")).to_be_visible()
+    expect(page.locator("#sky-error")).to_contain_text("required")
+
+
+def test_flight_scanner_console_resets_on_back_navigation(page: Page):
+    """Re-entering the flight scanner form clears any previous console output."""
+    open_modal(page)
+    go_flight_scanner(page)
+    # Manually inject some console output to simulate a previous run
+    page.evaluate("document.getElementById('sky-console-output').innerHTML = '<div>old output</div>'")
+    page.evaluate("document.getElementById('sky-console').classList.remove('hidden')")
+    # Navigate back and re-enter
+    page.locator("#phase-sky-monitor").get_by_text("← BACK").click()
+    page.locator("#phase-monitor-source").get_by_text("FLIGHT SCANNER").click()
+    expect(page.locator("#sky-console")).not_to_be_visible()
+    assert page.locator("#sky-console-output").inner_html() == ""
+
+
+@needs_brightdata
+@needs_llm
+def test_live_flight_scanner_dry_run_returns_price(page: Page):
+    """
+    Live flight scanner dry run: fill query → DRY RUN → price appears.
+    Requires BRIGHTDATA_WSS and LLM_API_KEY.
+    """
+    open_modal(page)
+    go_flight_scanner(page)
+
+    page.fill("#sky-name", "SIN to SVQ")
+    page.fill("#sky-query", "Cheapest one-way flight from Singapore to Seville between 2026-05-10 and 2026-05-15")
+    page.click("#sky-dry-run-btn")
+
+    expect(page.locator("#sky-console")).to_be_visible(timeout=5_000)
+    expect(page.locator("#sky-preview-value")).to_be_visible(timeout=180_000)
+    value_text = page.locator("#sky-preview-value").inner_text()
+    assert any(ch.isdigit() for ch in value_text), f"Expected a price, got: {value_text!r}"

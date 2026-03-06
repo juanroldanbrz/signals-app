@@ -75,8 +75,8 @@
             class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-green/40 hover:bg-neon-green/5 transition-all text-left flex items-start gap-4">
             <span class="text-2xl leading-none">✈️</span>
             <div>
-              <div class="text-neon-green font-mono font-bold text-sm mb-1">SKYSCANNER FLIGHTS</div>
-              <p class="text-gray-500 text-xs font-mono leading-relaxed">Track cheapest flight price for a route and date range.</p>
+              <div class="text-neon-green font-mono font-bold text-sm mb-1">FLIGHT SCANNER</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Track the cheapest flight price for any route and date range via Skyscanner.</p>
             </div>
           </button>
         </div>
@@ -895,7 +895,7 @@
     const errEl = document.getElementById('sky-error');
 
     if (!query) {
-      errEl.textContent = 'Please describe what flight you want to track.';
+      errEl.textContent = 'Query is required. Describe the flight you want to track.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -963,7 +963,7 @@
     document.getElementById('sky-preview-value').textContent = '€' + data.value;
     document.getElementById('sky-preview-route').textContent = query;
 
-    document.getElementById('sky-sf-name').value = name || 'Skyscanner Flight Price';
+    document.getElementById('sky-sf-name').value = name || 'Flight Scanner';
     document.getElementById('sky-sf-query').value = query;
     document.getElementById('sky-sf-interval').value = interval;
     document.getElementById('sky-sf-initial-value').value = data.value != null ? data.value : '';

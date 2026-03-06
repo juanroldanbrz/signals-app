@@ -29,6 +29,8 @@ async def run_digest(signal: Signal, on_progress=None, subscription_type: str = 
         await emit(f"Crawling {url} ...")
         agent_cls = get_agent_for_url(url)
         if agent_cls:
+            if subscription_type == "FREE":
+                raise PremiumRequired()
             await emit(f"Using site agent for {url} ...")
             agent_result = await agent_cls().run(
                 query=signal.source_extraction_query or url,
