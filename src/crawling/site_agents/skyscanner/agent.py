@@ -125,11 +125,15 @@ class SkyAgent:
         final_value: float | None = None
         final_summary: str = ""
 
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
         for iteration in range(MAX_ITERATIONS):
             await emit(f"Agent iteration {iteration + 1}/{MAX_ITERATIONS}")
 
             prompt = (
-                f"You are a Skyscanner flight search agent. Your task: {query}\n\n"
+                f"You are a Skyscanner flight search agent. Today is {today}.\n"
+                f"Your task: {query}\n\n"
                 f"Current session state:\n{memory.session_snapshot()}\n\n"
                 f"Available tools:\n{_tools_description()}\n\n"
                 f"Choose the next tool. Use 3-letter IATA airport or city codes:\n"
@@ -139,7 +143,7 @@ class SkyAgent:
                 f"    New York any → NYC, New York JFK → JFK, Paris → CDG,\n"
                 f"    Dubai → DXB, Bangkok → BKK, Seville → SVQ.\n"
                 f"  - Use city codes (e.g. TYO, LON, NYC) for 'any airport' searches.\n"
-                f"  - Dates must be YYYY-MM-DD format.\n"
+                f"  - Dates must be YYYY-MM-DD format and MUST be after {today}.\n"
                 f"When you have the cheapest price, set tool=done with the numeric value."
             )
 
