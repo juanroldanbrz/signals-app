@@ -66,12 +66,17 @@ async def search_flights(
         pass
 
     if not tickets:
-        # Diagnostic: show page title + first 200 chars so we know what loaded
+        # Save a screenshot so we can see what the browser actually shows
         try:
-            preview = (await page.inner_text("body"))[:200].replace("\n", " ")
-        except Exception:
-            preview = "(could not read body)"
-        await emit(f"  ⚠ 0 ticket elements — title={title!r} — preview: {preview}")
+            import uuid
+            from pathlib import Path
+            debug_dir = Path("/tmp/signals_screenshots")
+            debug_dir.mkdir(exist_ok=True)
+            fname = f"sky_debug_{uuid.uuid4().hex[:8]}.png"
+            await page.screenshot(path=str(debug_dir / fname), full_page=False)
+            await emit(f"  ⚠ 0 ticket elements — title={title!r} — open /screenshots/{fname} to see the page")
+        except Exception as e:
+            await emit(f"  ⚠ 0 ticket elements — title={title!r} — screenshot failed: {e}")
         return []
 
     await emit(f"  found {len(tickets)} ticket elements on {title!r}")
