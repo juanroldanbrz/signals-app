@@ -132,9 +132,15 @@ class SkyAgent:
                 f"You are a Skyscanner flight search agent. Your task: {query}\n\n"
                 f"Current session state:\n{memory.session_snapshot()}\n\n"
                 f"Available tools:\n{_tools_description()}\n\n"
-                f"Choose the next tool. For search_flights or scan_date_range set origin, "
-                f"destination, date_from, date_to (IATA codes, dates YYYY-MM-DD). "
-                f"When you have the answer, set tool=done with the numeric value."
+                f"Choose the next tool. Use 3-letter IATA airport or city codes:\n"
+                f"  - Singapore → SIN, London Heathrow → LHR, London Gatwick → LGW,\n"
+                f"    London any → LON, Tokyo any → TYO, Tokyo Narita → NRT,\n"
+                f"    Tokyo Haneda → HND, Madrid → MAD, Barcelona → BCN,\n"
+                f"    New York any → NYC, New York JFK → JFK, Paris → CDG,\n"
+                f"    Dubai → DXB, Bangkok → BKK, Seville → SVQ.\n"
+                f"  - Use city codes (e.g. TYO, LON, NYC) for 'any airport' searches.\n"
+                f"  - Dates must be YYYY-MM-DD format.\n"
+                f"When you have the cheapest price, set tool=done with the numeric value."
             )
 
             raw = await gemini_text(

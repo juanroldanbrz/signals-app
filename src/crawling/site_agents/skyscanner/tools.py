@@ -24,18 +24,29 @@ def _build_search_url(params: SearchParams) -> str:
 async def search_flights(page, params: SearchParams) -> list[FlightResult]:
     url = _build_search_url(params)
     try:
-        await page.goto(url, wait_until="load", timeout=30_000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     except Exception:
         pass
-    await page.wait_for_timeout(2_000)
 
-    html = await page.content()
-    text = html[:_MAX_HTML_CHARS]
+    # Wait for flight results to appear (SPA loads data after initial HTML)
+    try:
+        await page.wait_for_selector("[data-testid='price'], .BpkText_bpk-text--xl", timeout=12_000)
+    except Exception:
+        # No price element found — give it a flat extra wait as fallback
+        await page.wait_for_timeout(6_000)
+
+    # inner_text gives only visible text — no HTML tags, scripts, or styles
+    try:
+        text = await page.inner_text("body")
+    except Exception:
+        text = await page.content()
+    text = text[:_MAX_HTML_CHARS]
 
     prompt = (
         f"Extract all flight offers from this Skyscanner page for "
         f"{params.origin} -> {params.destination} on {params.date_from}. "
         f"Use origin={params.origin}, destination={params.destination}, date={params.date_from}. "
+        f"Prices are usually shown as numbers followed by a currency symbol (e.g. €89, $120). "
         f"If no flights found return an empty flights list.\n\n"
         f"PAGE CONTENT:\n{text}"
     )
@@ -73,8 +84,11 @@ async def scan_date_range(
     while current <= capped_end:
         day_num += 1
         total = (capped_end - start).days + 1
+        day_url = _build_search_url(params.model_copy(update={
+            "date_from": current.isoformat(), "date_to": current.isoformat(),
+        }))
         if on_progress:
-            await on_progress(f"Scanning day {day_num}/{total}: {current}")
+            await on_progress(f"Scanning day {day_num}/{total}: {current} → {day_url}")
         day_params = params.model_copy(update={
             "date_from": current.isoformat(),
             "date_to": current.isoformat(),
