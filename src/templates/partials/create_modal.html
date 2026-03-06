@@ -161,13 +161,45 @@
         </div>
       </div>
 
+      <!-- Phase 1b-source: Digest source picker -->
+      <div id="phase-digest-source" class="hidden px-6 py-5">
+        <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+        <p class="text-xs font-mono text-gray-500 mb-4 tracking-wider">CHOOSE CONTENT SOURCE</p>
+        <div class="space-y-3">
+          <button onclick="selectDigestSource('urls')"
+            class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-blue/40 hover:bg-neon-blue/5 transition-all text-left flex items-start gap-4">
+            <span class="text-2xl leading-none">🔗</span>
+            <div>
+              <div class="text-neon-blue font-mono font-bold text-sm mb-1">MY URLS</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Paste URLs you want to crawl and summarize.</p>
+            </div>
+          </button>
+          <button onclick="selectDigestSource('search')"
+            class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-blue/40 hover:bg-neon-blue/5 transition-all text-left flex items-start gap-4">
+            <span class="text-2xl leading-none">🔍</span>
+            <div>
+              <div class="text-neon-blue font-mono font-bold text-sm mb-1">SEARCH ONLINE</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Automatically search the web based on your topic.</p>
+            </div>
+          </button>
+          <button onclick="selectDigestSource('predefined')"
+            class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-blue/40 hover:bg-neon-blue/5 transition-all text-left flex items-start gap-4">
+            <span class="text-2xl leading-none">✈️</span>
+            <div>
+              <div class="text-neon-blue font-mono font-bold text-sm mb-1">PREDEFINED SOURCES</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Start from curated sources like Skyscanner.</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <!-- Phase 1b: Digest form -->
       <div id="phase-digest" class="hidden" style="perspective: 1000px;">
         <div id="digest-flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
 
           <!-- FRONT: Digest form -->
           <div style="backface-visibility: hidden;" class="px-6 py-5">
-            <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+            <button onclick="showDigestSourcePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
             <div class="space-y-4">
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
@@ -179,8 +211,10 @@
                 <textarea id="d-query" rows="2" placeholder="e.g. Latest news about AI safety research"
                   class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50 resize-none"></textarea>
               </div>
-              <div>
-                <label class="block text-xs text-gray-600 font-mono mb-2">URLS TO CRAWL <span class="text-gray-700">(optional — leave empty to use web search)</span></label>
+
+              <!-- Source: MY URLS -->
+              <div id="d-source-urls-section" class="hidden">
+                <label class="block text-xs text-gray-600 font-mono mb-2">URLS TO CRAWL</label>
                 <div id="d-url-list" class="space-y-2 mb-2">
                   <div class="flex gap-2">
                     <input type="url" placeholder="https://..." data-url-input
@@ -191,6 +225,27 @@
                 <button type="button" onclick="addUrlRow()"
                   class="text-neon-blue text-xs font-mono hover:text-white transition-colors">+ ADD URL</button>
               </div>
+
+              <!-- Source: SEARCH ONLINE -->
+              <div id="d-source-search-section" class="hidden">
+                <div class="p-3 rounded-lg border border-neon-blue/20 bg-neon-blue/5 flex items-center gap-3">
+                  <span class="text-lg">🔍</span>
+                  <p class="text-xs font-mono text-gray-400">The web will be searched using your topic as the query.</p>
+                </div>
+              </div>
+
+              <!-- Source: PREDEFINED -->
+              <div id="d-source-predefined-section" class="hidden">
+                <label class="block text-xs text-gray-600 font-mono mb-2">SOURCE</label>
+                <div class="p-3 rounded-lg border border-neon-blue/30 bg-neon-blue/5 flex items-center gap-3">
+                  <span class="text-xl">✈️</span>
+                  <div>
+                    <div class="text-xs font-mono text-neon-blue font-bold">SKYSCANNER</div>
+                    <div class="text-xs font-mono text-gray-600">skyscanner.com</div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
                 {% if user.subscription_type == "FREE" %}
@@ -289,6 +344,7 @@
     document.getElementById('phase-type-picker').classList.remove('hidden');
     document.getElementById('phase-monitor').classList.add('hidden');
     document.getElementById('phase-digest').classList.add('hidden');
+    document.getElementById('phase-digest-source').classList.add('hidden');
   };
 
   window.showMonitorForm = function() {
@@ -297,10 +353,26 @@
     document.getElementById('phase-digest').classList.add('hidden');
   };
 
+  let digestSourceType = 'search';
+
   window.showDigestForm = function() {
+    showDigestSourcePicker();
+  };
+
+  window.showDigestSourcePicker = function() {
     document.getElementById('phase-type-picker').classList.add('hidden');
     document.getElementById('phase-monitor').classList.add('hidden');
+    document.getElementById('phase-digest').classList.add('hidden');
+    document.getElementById('phase-digest-source').classList.remove('hidden');
+  };
+
+  window.selectDigestSource = function(type) {
+    digestSourceType = type;
+    document.getElementById('phase-digest-source').classList.add('hidden');
     document.getElementById('phase-digest').classList.remove('hidden');
+    document.getElementById('d-source-urls-section').classList.toggle('hidden', type !== 'urls');
+    document.getElementById('d-source-search-section').classList.toggle('hidden', type !== 'search');
+    document.getElementById('d-source-predefined-section').classList.toggle('hidden', type !== 'predefined');
   };
 
   // ─── Monitor form helpers ────────────────────────────────────────────────────
@@ -474,14 +546,20 @@
   };
 
   window.runDigestPreview = async function() {
-    const urls = Array.from(document.querySelectorAll('[data-url-input]'))
-      .map(el => el.value.trim()).filter(Boolean);
     const query = document.getElementById('d-query').value.trim();
     const name = document.getElementById('d-name').value.trim();
     const interval = document.getElementById('d-interval').value;
     const errEl = document.getElementById('digest-error');
 
-    const braveQuery = urls.length === 0 ? query : '';
+    let urls = [];
+    let braveQuery = '';
+    if (digestSourceType === 'urls') {
+      urls = Array.from(document.querySelectorAll('[data-url-input]')).map(el => el.value.trim()).filter(Boolean);
+    } else if (digestSourceType === 'search') {
+      braveQuery = query;
+    } else if (digestSourceType === 'predefined') {
+      urls = ['https://www.skyscanner.com'];
+    }
 
     const btn = document.getElementById('digest-preview-btn');
     btn.disabled = true;
