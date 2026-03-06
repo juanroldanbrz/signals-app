@@ -15,6 +15,7 @@ from src.models.signal import Signal, SignalStatus
 from src.models.signal_run import RunStatus, SignalRun
 from src.models.user import User
 from src.services.auth import get_current_user
+from src.services.digest_executor import PremiumRequired
 from src.services.executor import extract_from_url
 from src.services.scheduler import _run_signal_job
 
@@ -63,7 +64,7 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
 
             if value is None:
                 if raw == "BLOCKED" and current_user.subscription_type == "FREE":
-                    await queue.put({"type": "done", "error": "🔒 This website is blocked by bot protection and requires a PREMIUM plan to access."})
+                    await queue.put({"type": "premium_required", "premium_required": True})
                 elif raw == "BLOCKED":
                     await queue.put({"type": "done", "error": "⚠ This website is blocking automated access.", "screenshot_url": screenshot_url})
                 else:
@@ -81,7 +82,7 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
             event = await queue.get()
             event_type = event.pop("type")
             yield f"data: {json.dumps(event)}\n\n"
-            if event_type == "done":
+            if event_type in ("done", "premium_required"):
                 break
 
     return StreamingResponse(
@@ -128,6 +129,8 @@ async def digest_preview(body: DigestPreviewRequest, current_user: User = Depend
                     "key_points": content.key_points,
                     "sources": [s.model_dump() for s in content.sources],
                 })
+        except PremiumRequired:
+            await queue.put({"type": "premium_required", "premium_required": True})
         except Exception as e:
             await queue.put({"type": "done", "error": f"Unexpected error: {str(e)[:200]}"})
 
@@ -137,7 +140,7 @@ async def digest_preview(body: DigestPreviewRequest, current_user: User = Depend
             event = await queue.get()
             event_type = event.pop("type")
             yield f"data: {json.dumps(event)}\n\n"
-            if event_type == "done":
+            if event_type in ("done", "premium_required"):
                 break
 
     return StreamingResponse(

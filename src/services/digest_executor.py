@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
 
 from src.crawling.agent import crawl_text
+
+
+class PremiumRequired(Exception):
+    pass
 from src.config import settings
 from src.models.digest import DigestContent, SourceRef
 from src.models.signal import Signal
@@ -25,7 +29,7 @@ async def run_digest(signal: Signal, on_progress=None, subscription_type: str = 
         result = await crawl_text(url)
         if result.get("blocked"):
             if subscription_type == "FREE":
-                await emit(f"🔒 {url} — blocked (PREMIUM required)")
+                raise PremiumRequired()
             else:
                 await emit(f"⚠ {url} — blocked by bot protection")
         elif result.get("text"):
