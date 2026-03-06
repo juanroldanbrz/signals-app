@@ -33,8 +33,10 @@ def clean_signals():
     """Wipe signals collection before every test so signal count is predictable."""
     from tests.e2e.conftest import TEST_MONGO_URI, TEST_MONGO_DB
     client = pymongo.MongoClient(TEST_MONGO_URI)
-    client[TEST_MONGO_DB].signals.delete_many({})
-    client.close()
+    try:
+        client[TEST_MONGO_DB].signals.delete_many({})
+    finally:
+        client.close()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -212,21 +214,23 @@ def test_free_user_new_signal_button_disabled_when_limit_reached(page: Page, tes
 
     # Insert a fake signal owned by the test user
     client = pymongo.MongoClient(TEST_MONGO_URI)
-    db = client[TEST_MONGO_DB]
-    user_doc = db.users.find_one({"email": test_user["email"]})
-    db.signals.insert_one({
-        "user_id": user_doc["_id"],
-        "name": "Dummy signal",
-        "signal_type": "monitor",
-        "status": "active",
-        "source_url": "https://example.com",
-        "source_extraction_query": "test",
-        "source_urls": [],
-        "search_query": None,
-        "interval_minutes": 1440,
-        "created_at": datetime.now(timezone.utc),
-    })
-    client.close()
+    try:
+        db = client[TEST_MONGO_DB]
+        user_doc = db.users.find_one({"email": test_user["email"]})
+        db.signals.insert_one({
+            "user_id": user_doc["_id"],
+            "name": "Dummy signal",
+            "signal_type": "monitor",
+            "status": "active",
+            "source_url": "https://example.com",
+            "source_extraction_query": "test",
+            "source_urls": [],
+            "search_query": None,
+            "interval_minutes": 1440,
+            "created_at": datetime.now(timezone.utc),
+        })
+    finally:
+        client.close()
 
     page.goto("/app")
     page.wait_for_load_state("networkidle")
@@ -235,7 +239,119 @@ def test_free_user_new_signal_button_disabled_when_limit_reached(page: Page, tes
     expect(btn).to_be_disabled()
 
 
+# ── Navigation state reset (regression: stale console / flip) ─────────────────
+
+def test_monitor_console_cleared_when_navigating_back_and_forth(page: Page):
+    """Console from a failed dry-run must not persist when user goes back and re-enters monitor."""
+    open_modal(page)
+    go_monitor(page)
+    # Trigger a validation error to cause the error element to appear
+    page.click("#dry-run-btn")
+    expect(page.locator("#dry-run-error")).to_be_visible()
+    # Go back to type picker and re-enter monitor
+    page.locator("#phase-monitor").get_by_text("← BACK").click()
+    expect(page.locator("#phase-type-picker")).to_be_visible()
+    page.locator("#phase-type-picker").get_by_text("MONITOR").click()
+    expect(page.locator("#phase-monitor")).to_be_visible()
+    # Console should be hidden, not showing stale output
+    expect(page.locator("#dry-run-console")).not_to_be_visible()
+
+
+def test_digest_console_cleared_when_navigating_back(page: Page):
+    """Digest console must not persist after user navigates back to source picker."""
+    open_modal(page)
+    go_digest_source(page, "SEARCH ONLINE")
+    # Trigger preview without filling — just check we can navigate back without stale state
+    # (Actual console would need a live run; we verify the element is hidden on re-entry)
+    page.locator("#phase-digest").get_by_text("← BACK").click()
+    expect(page.locator("#phase-digest-source")).to_be_visible()
+    # Re-select SEARCH ONLINE
+    page.locator("#phase-digest-source").get_by_text("SEARCH ONLINE").click()
+    expect(page.locator("#phase-digest")).to_be_visible()
+    expect(page.locator("#digest-console")).not_to_be_visible()
+
+
+def test_digest_my_urls_rows_reset_on_re_entry(page: Page):
+    """URL rows added in MY URLS must be cleared when user navigates back and re-enters."""
+    open_modal(page)
+    go_digest_source(page, "MY URLS")
+    # Add extra rows
+    page.click("button:has-text('+ ADD URL')")
+    page.click("button:has-text('+ ADD URL')")
+    expect(page.locator("[data-url-input]")).to_have_count(3)
+    # Navigate back and re-enter MY URLS
+    page.locator("#phase-digest").get_by_text("← BACK").click()
+    page.locator("#phase-digest-source").get_by_text("MY URLS").click()
+    # Rows should be reset to just one empty row
+    expect(page.locator("[data-url-input]")).to_have_count(1)
+
+
+def test_no_duplicate_modal_on_double_click(page: Page):
+    """Clicking NEW SIGNAL while the modal is already open must not create a second modal."""
+    open_modal(page)
+    # Simulate a second click on the NEW SIGNAL button via JS (bypasses the visual overlay).
+    # The hx-on::before-request guard should cancel the HTMX request.
+    page.evaluate("""
+        const btn = document.querySelector('[hx-get="/partials/create-modal"]');
+        if (btn) btn.click();
+    """)
+    page.wait_for_timeout(600)
+    expect(page.locator("#create-modal")).to_have_count(1)
+
+
 # ── Live crawl tests (need real LLM key) ─────────────────────────────────────
+
+@needs_llm
+def test_monitor_yahoo_btc_price_extracted_and_saved(page: Page):
+    """
+    Full monitor flow: Yahoo Finance BTC/USD price → dry-run → save signal.
+    Asserts:
+    - Extracted value is numeric
+    - Dashboard shows the saved signal card
+    - Signal is persisted in MongoDB with correct fields
+    """
+    from tests.e2e.conftest import TEST_MONGO_URI, TEST_MONGO_DB
+
+    open_modal(page)
+    go_monitor(page)
+
+    page.fill("#f-name", "BTC/USD Yahoo")
+    page.fill("#f-url", "https://sg.finance.yahoo.com/quote/BTC-USD/")
+    page.fill("#f-query", "current Bitcoin BTC price in USD")
+
+    page.click("#dry-run-btn")
+
+    expect(page.locator("#dry-run-console")).to_be_visible(timeout=5_000)
+    expect(page.locator("#preview-value")).to_be_visible(timeout=90_000)
+
+    value_text = page.locator("#preview-value").inner_text()
+    assert any(ch.isdigit() for ch in value_text), f"Expected a number in preview value, got: {value_text!r}"
+
+    # Save the signal — server returns HX-Redirect: /app so HTMX navigates away
+    page.locator("#save-form button[type='submit']").click()
+    page.wait_for_url("**/app**", timeout=15_000)
+    page.wait_for_load_state("networkidle")
+
+    # Signal card must appear on the dashboard
+    expect(page.locator("h3:has-text('BTC/USD Yahoo')")).to_be_visible(timeout=5_000)
+
+    # Confirm persisted correctly in MongoDB
+    client = pymongo.MongoClient(TEST_MONGO_URI)
+    try:
+        db = client[TEST_MONGO_DB]
+        doc = db.signals.find_one({"name": "BTC/USD Yahoo"})
+        runs = list(db.signal_runs.find({"signal_id": doc["_id"]})) if doc else []
+    finally:
+        client.close()
+
+    assert doc is not None, "Signal was not found in the database"
+    assert doc["signal_type"] == "monitor"
+    assert doc["source_url"] == "https://sg.finance.yahoo.com/quote/BTC-USD/"
+    assert doc["source_extraction_query"] == "current Bitcoin BTC price in USD"
+    assert doc["interval_minutes"] == 1440  # FREE user locked to 24h
+    assert len(runs) >= 1, "Expected at least one SignalRun saved from the dry-run preview"
+    assert runs[0]["value"] is not None, "Initial run value should not be None"
+
 
 @needs_llm
 def test_monitor_dry_run_coinmarketcap_bitcoin(page: Page):

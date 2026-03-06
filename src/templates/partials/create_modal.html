@@ -373,6 +373,9 @@
     document.getElementById('phase-monitor').classList.add('hidden');
     document.getElementById('phase-digest').classList.add('hidden');
     document.getElementById('phase-digest-source').classList.add('hidden');
+    // Reset monitor state so re-entering is clean
+    document.getElementById('flip-inner').style.transform = '';
+    clearConsole();
   };
 
   window.showMonitorForm = function() {
@@ -392,6 +395,12 @@
     document.getElementById('phase-monitor').classList.add('hidden');
     document.getElementById('phase-digest').classList.add('hidden');
     document.getElementById('phase-digest-source').classList.remove('hidden');
+    // Reset digest state so re-entering is clean
+    document.getElementById('digest-flip-inner').style.transform = '';
+    document.getElementById('digest-console').classList.add('hidden');
+    document.getElementById('digest-console-output').innerHTML = '';
+    document.getElementById('digest-console-spinner').classList.add('hidden');
+    document.getElementById('digest-error').classList.add('hidden');
   };
 
   window.selectDigestSource = function(type) {
@@ -401,6 +410,11 @@
     document.getElementById('d-source-urls-section').classList.toggle('hidden', type !== 'urls');
     document.getElementById('d-source-search-section').classList.toggle('hidden', type !== 'search');
     document.getElementById('d-source-predefined-section').classList.toggle('hidden', type !== 'predefined');
+    // Reset URL list to a single empty row so previous entries don't persist
+    if (type === 'urls') {
+      document.getElementById('d-url-list').innerHTML =
+        '<div class="flex gap-2"><input type="url" placeholder="https://..." data-url-input class="flex-1 bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-blue/50" /><button type="button" onclick="removeUrlRow(this)" class="text-gray-600 hover:text-red-400 text-xs font-mono px-2 border border-dark-border rounded transition-colors">✕</button></div>';
+    }
   };
 
   // ─── Monitor form helpers ────────────────────────────────────────────────────
