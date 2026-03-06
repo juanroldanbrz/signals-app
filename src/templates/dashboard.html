@@ -27,6 +27,7 @@
       hx-get="/partials/create-modal"
       hx-target="body"
       hx-swap="beforeend"
+      hx-on::before-request="if(document.getElementById('create-modal')) event.preventDefault()"
       class="flex items-center gap-2 px-4 py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
       <span class="text-lg leading-none">+</span> NEW SIGNAL
     </button>
@@ -36,6 +37,7 @@
       hx-get="/partials/create-modal"
       hx-target="body"
       hx-swap="beforeend"
+      hx-on::before-request="if(document.getElementById('create-modal')) event.preventDefault()"
       class="flex items-center gap-2 px-4 py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
       <span class="text-lg leading-none">+</span> NEW SIGNAL
     </button>
@@ -51,6 +53,7 @@
     hx-get="/partials/create-modal"
     hx-target="body"
     hx-swap="beforeend"
+    hx-on::before-request="if(document.getElementById('create-modal')) event.preventDefault()"
     class="px-6 py-3 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/10 transition-all">
     + CREATE SIGNAL
   </button>

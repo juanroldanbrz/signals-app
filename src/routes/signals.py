@@ -92,6 +92,55 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
     )
 
 
+class SkyPreviewRequest(PydanticBaseModel):
+    query: str
+
+
+@router.post("/signals/sky-preview")
+async def sky_preview(body: SkyPreviewRequest, current_user: User = Depends(get_current_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    from src.crawling.site_agents.skyscanner.agent import SkyAgent
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def on_progress(msg: str) -> None:
+        await queue.put({"type": "progress", "msg": msg})
+
+    async def run_task() -> None:
+        try:
+            agent = SkyAgent()
+            result = await agent.run(
+                query=body.query,
+                signal_id="preview",
+                persisted_memory={},
+                on_progress=on_progress,
+            )
+            if result.value is not None:
+                await queue.put({"type": "done", "value": result.value})
+            elif result.digest_content:
+                await queue.put({"type": "done", "error": result.digest_content})
+            else:
+                await queue.put({"type": "done", "error": "No flight price found. Try being more specific (include route and dates)."})
+        except Exception as e:
+            await queue.put({"type": "done", "error": f"Unexpected error: {str(e)[:200]}"})
+
+    async def event_stream():
+        asyncio.create_task(run_task())
+        while True:
+            event = await queue.get()
+            event_type = event.pop("type")
+            yield f"data: {json.dumps(event)}\n\n"
+            if event_type == "done":
+                break
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 class DigestPreviewRequest(PydanticBaseModel):
     source_urls: list[str]
     search_query: str = ""

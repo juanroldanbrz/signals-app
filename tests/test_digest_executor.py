@@ -122,3 +122,34 @@ async def test_run_digest_calls_brave_when_key_set():
         await run_digest(signal)
 
     brave_mock.assert_called_once_with("AI news", "test-key")
+
+
+async def test_run_digest_routes_to_site_agent_for_premium_domain():
+    """When source_url matches a registered site agent, use the agent not crawl_text."""
+    from src.services.digest_executor import run_digest
+    from src.crawling.site_agents.base import AgentResult
+
+    signal = _make_signal(
+        source_urls=["https://www.skyscanner.com/flights/lhr/mad/"],
+        agent_memory={},
+    )
+    agent_result = AgentResult(
+        value=None,
+        digest_content="Flights from LHR to MAD from €89",
+        persisted_memory={"price_history": []},
+    )
+
+    mock_agent_cls = MagicMock()
+    mock_agent_instance = MagicMock()
+    mock_agent_instance.run = AsyncMock(return_value=agent_result)
+    mock_agent_cls.return_value = mock_agent_instance
+
+    with patch("src.services.digest_executor.get_agent_for_url",
+               return_value=mock_agent_cls), \
+         patch("src.services.digest_executor.crawl_text", AsyncMock()) as mock_crawl, \
+         patch("src.services.digest_executor.gemini_text",
+               AsyncMock(return_value='{"summary":"ok","key_points":[],"sources":[]}')):
+        await run_digest(signal)
+
+    mock_crawl.assert_not_called()
+    mock_agent_instance.run.assert_called_once()

@@ -28,6 +28,7 @@ class Signal(Document):
     last_value: float | None = None
     alert_triggered: bool = False
     consecutive_errors: int = 0
+    agent_memory: dict = {}
     next_run_at: datetime | None = None
     condition_type: Literal["above", "below", "equals", "change"] | None = None
     condition_threshold: float | None = None
