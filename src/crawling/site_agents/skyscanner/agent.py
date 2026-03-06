@@ -169,31 +169,33 @@ class SkyAgent:
 
             await emit(f"Calling tool: {tool_name}(origin={call.origin}, dest={call.destination}, {call.date_from}→{call.date_to})")
 
+            if tool_name not in ("search_flights", "scan_date_range"):
+                await emit(f"Unknown tool: {tool_name}")
+                continue
+
+            from src.crawling.site_agents.skyscanner.types import SearchParams
+            params = SearchParams(
+                origin=call.origin,
+                destination=call.destination,
+                date_from=call.date_from,
+                date_to=call.date_to,
+            )
+
             async with async_playwright() as pw:
-                browser, page = await get_page("https://www.skyscanner.com", pw)
-                try:
-                    if tool_name in ("search_flights", "scan_date_range"):
-                        from src.crawling.site_agents.skyscanner.types import SearchParams
-                        params = SearchParams(
-                            origin=call.origin,
-                            destination=call.destination,
-                            date_from=call.date_from,
-                            date_to=call.date_to,
-                        )
-                        if tool_name == "search_flights":
-                            flights = await search_flights(page, params)
-                            memory.add_results(flights)
-                            memory.searches.append(params)
-                            await emit(f"Found {len(flights)} flights")
-                        else:
-                            cal = await scan_date_range(page, params, on_progress=on_progress)
-                            memory.add_results(cal.entries)
-                            memory.searches.append(params)
-                            await emit(f"Scanned {len(cal.entries)} flights across date range")
-                    else:
-                        await emit(f"Unknown tool: {tool_name}")
-                finally:
-                    await browser.close()
+                if tool_name == "search_flights":
+                    browser, page = await get_page("https://www.skyscanner.com", pw)
+                    try:
+                        flights = await search_flights(page, params)
+                    finally:
+                        await browser.close()
+                    memory.add_results(flights)
+                    memory.searches.append(params)
+                    await emit(f"Found {len(flights)} flights")
+                else:
+                    cal = await scan_date_range(pw, params, on_progress=on_progress)
+                    memory.add_results(cal.entries)
+                    memory.searches.append(params)
+                    await emit(f"Scanned {len(cal.entries)} flights across date range")
 
         return AgentResult(
             value=final_value,

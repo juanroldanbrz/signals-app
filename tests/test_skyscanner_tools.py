@@ -81,6 +81,7 @@ async def test_scan_date_range_calls_search_per_day():
     from src.crawling.site_agents.skyscanner.tools import scan_date_range
 
     mock_page = AsyncMock()
+    mock_browser = AsyncMock()
     call_count = 0
 
     async def fake_search(page, params, **kwargs):
@@ -89,9 +90,11 @@ async def test_scan_date_range_calls_search_per_day():
         return [FlightResult(origin=params.origin, destination=params.destination,
                              date=params.date_from, price=100.0 + call_count, currency="EUR")]
 
-    with patch("src.crawling.site_agents.skyscanner.tools.search_flights", fake_search):
+    with patch("src.crawling.site_agents.skyscanner.tools.search_flights", fake_search), \
+         patch("src.crawling.site_agents.skyscanner.tools.get_page",
+               AsyncMock(return_value=(mock_browser, mock_page))):
         params = _make_params(date_from="2026-04-01", date_to="2026-04-03")
-        cal = await scan_date_range(mock_page, params)
+        cal = await scan_date_range(MagicMock(), params)
 
     assert call_count == 3   # April 1, 2, 3
     assert len(cal.entries) == 3
@@ -104,6 +107,7 @@ async def test_scan_date_range_caps_at_7_days():
     from src.crawling.site_agents.skyscanner.tools import scan_date_range, _MAX_SCAN_DAYS
 
     mock_page = AsyncMock()
+    mock_browser = AsyncMock()
     call_count = 0
 
     async def fake_search(page, params, **kwargs):
@@ -111,9 +115,11 @@ async def test_scan_date_range_caps_at_7_days():
         call_count += 1
         return []
 
-    with patch("src.crawling.site_agents.skyscanner.tools.search_flights", fake_search):
+    with patch("src.crawling.site_agents.skyscanner.tools.search_flights", fake_search), \
+         patch("src.crawling.site_agents.skyscanner.tools.get_page",
+               AsyncMock(return_value=(mock_browser, mock_page))):
         # 31-day range — should be capped at _MAX_SCAN_DAYS
         params = _make_params(date_from="2026-05-01", date_to="2026-05-31")
-        cal = await scan_date_range(mock_page, params)
+        cal = await scan_date_range(MagicMock(), params)
 
     assert call_count == _MAX_SCAN_DAYS

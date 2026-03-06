@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from pydantic import BaseModel as PydanticBaseModel
+from src.crawling.browser import get_page
 from src.crawling.site_agents.base import ProgressCallback
 from src.crawling.site_agents.skyscanner.types import FlightResult, SearchParams, PriceCalendar
 from src.services.tracing import gemini_text
@@ -110,9 +111,9 @@ def get_cheapest(results: list[FlightResult]) -> FlightResult | None:
 
 
 async def scan_date_range(
-    page, params: SearchParams, on_progress: ProgressCallback = None
+    playwright, params: SearchParams, on_progress: ProgressCallback = None
 ) -> PriceCalendar:
-    """Search each day in the range (capped at _MAX_SCAN_DAYS). Emits per-day progress."""
+    """Search each day in the range (capped at _MAX_SCAN_DAYS). Creates a fresh browser per day."""
     start = date.fromisoformat(params.date_from)
     end = date.fromisoformat(params.date_to)
 
@@ -136,7 +137,12 @@ async def scan_date_range(
             "date_from": current.isoformat(),
             "date_to": current.isoformat(),
         })
-        flights = await search_flights(page, day_params, on_progress=on_progress)
+        # Fresh browser per day — BrightData CDP closes after each navigation
+        browser, page = await get_page("https://www.skyscanner.com", playwright)
+        try:
+            flights = await search_flights(page, day_params, on_progress=on_progress)
+        finally:
+            await browser.close()
         if flights and on_progress:
             cheapest = min(flights, key=lambda f: f.price)
             await on_progress(f"  {current}: {len(flights)} flights, cheapest {cheapest.price} {cheapest.currency}")
