@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     mandatory_email_verification: bool = False
     resend_api_key: str = ""
     brave_search_api_key: str = ""
+    brightdata_wss: str = ""
+    premium_domains: str = "skyscanner.com,skyscanner.net"
     # Langfuse (optional — tracing disabled if not set)
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
