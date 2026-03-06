@@ -35,15 +35,20 @@ async def search_flights(
     except Exception:
         pass
 
-    # Match exploration script: wait for body to have substantial content, then settle
+    # Phase 1: HTML shell (includes __internal JSON in <script>) — fires quickly
     try:
         await page.wait_for_function(
             "document.body.textContent.length > 5000", timeout=30_000
         )
-        await emit("  page loaded, waiting for results to stabilise...")
     except Exception:
         await emit("  ⚠ page content threshold not reached")
-    await page.wait_for_timeout(5_000)
+
+    # Phase 2: React renders flight cards after its API calls complete — can be slow
+    try:
+        await page.wait_for_selector("[data-testid='ticket']", timeout=30_000)
+        await emit("  flight results rendered")
+    except Exception:
+        await emit("  ⚠ ticket selector timed out (30s) — no flights rendered yet")
 
     # Extract [data-testid="ticket"] elements — confirmed by exploration script
     try:
