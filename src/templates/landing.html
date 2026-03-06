@@ -42,6 +42,81 @@
   </div>
 </section>
 
+<section class="py-20 border-t border-dark-border">
+  <div class="text-center mb-12">
+    <p class="text-xs font-mono text-gray-500 tracking-widest mb-3">PRICING</p>
+    <h2 class="text-3xl font-bold text-white tracking-tight">Simple, honest plans</h2>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+
+    <!-- FREE -->
+    <div class="p-6 rounded-lg border border-dark-border bg-dark-card flex flex-col">
+      <div class="mb-6">
+        <p class="text-xs font-mono text-gray-500 tracking-widest mb-1">FREE</p>
+        <div class="text-4xl font-bold text-white mb-1">$0</div>
+        <p class="text-gray-600 text-xs font-mono">forever</p>
+      </div>
+      <ul class="space-y-3 flex-1 mb-8">
+        {% set free_items = [
+          ("✓", "1 signal", true),
+          ("✓", "24h refresh only", true),
+          ("✓", "Email alerts", true),
+          ("✓", "Monitor & Digest signals", true),
+          ("✗", "Custom schedule (1h–12h)", false),
+          ("✗", "Run now on demand", false),
+          ("✗", "Complex sites (Skyscanner, Twitter…)", false),
+          ("✗", "Up to 10 signals", false),
+        ] %}
+        {% for icon, label, enabled in free_items %}
+        <li class="flex items-center gap-3 text-xs font-mono {% if enabled %}text-gray-300{% else %}text-gray-700{% endif %}">
+          <span class="{% if enabled %}text-neon-green{% else %}text-gray-700{% endif %} w-3 shrink-0">{{ icon }}</span>
+          {{ label }}
+        </li>
+        {% endfor %}
+      </ul>
+      <a href="/auth/register"
+        class="block text-center py-2.5 border border-dark-border text-gray-400 text-xs font-mono rounded hover:border-gray-500 hover:text-gray-200 transition-all tracking-wider">
+        GET STARTED FREE
+      </a>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="p-6 rounded-lg border border-neon-green/40 bg-dark-card flex flex-col relative overflow-hidden">
+      <div class="absolute top-0 right-0 px-3 py-1 bg-neon-green text-black text-xs font-mono font-bold rounded-bl">
+        PREMIUM
+      </div>
+      <div class="mb-6">
+        <p class="text-xs font-mono text-neon-green tracking-widest mb-1">PREMIUM</p>
+        <div class="text-4xl font-bold text-white mb-1">Contact us</div>
+        <p class="text-gray-600 text-xs font-mono">for access</p>
+      </div>
+      <ul class="space-y-3 flex-1 mb-8">
+        {% set premium_items = [
+          ("✓", "Up to 10 signals", true),
+          ("✓", "Custom schedule — 1h, 2h, 6h, 12h, 24h", true),
+          ("✓", "Run now on demand", true),
+          ("✓", "Email + Telegram alerts", true),
+          ("✓", "Monitor & Digest signals", true),
+          ("✓", "Complex sites (Skyscanner, Twitter…)", true),
+          ("✓", "Web search via Brave", true),
+        ] %}
+        {% for icon, label, enabled in premium_items %}
+        <li class="flex items-center gap-3 text-xs font-mono text-gray-300">
+          <span class="text-neon-green w-3 shrink-0">{{ icon }}</span>
+          {{ label }}
+        </li>
+        {% endfor %}
+      </ul>
+      <a href="mailto:juan.roldan@bluggie.com?subject=Signals Premium"
+        class="block text-center py-2.5 bg-neon-green text-black font-bold text-xs font-mono rounded hover:bg-neon-green/90 transition-all tracking-wider glow-green">
+        UPGRADE TO PREMIUM
+      </a>
+    </div>
+
+  </div>
+</section>
+
 <section class="py-16 border-t border-dark-border">
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <div class="p-6 rounded-lg border border-dark-border bg-dark-card hover:border-neon-green/30 transition-all group">
