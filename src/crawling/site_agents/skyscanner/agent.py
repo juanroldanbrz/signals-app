@@ -176,7 +176,7 @@ class SkyAgent:
                             memory.searches.append(params)
                             await emit(f"Found {len(flights)} flights")
                         else:
-                            cal = await scan_date_range(page, params)
+                            cal = await scan_date_range(page, params, on_progress=on_progress)
                             memory.add_results(cal.entries)
                             memory.searches.append(params)
                             await emit(f"Scanned {len(cal.entries)} flights across date range")

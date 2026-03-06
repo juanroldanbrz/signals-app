@@ -1,9 +1,15 @@
-import json
 from datetime import date, timedelta
+from pydantic import BaseModel as PydanticBaseModel
+from src.crawling.site_agents.base import ProgressCallback
 from src.crawling.site_agents.skyscanner.types import FlightResult, SearchParams, PriceCalendar
 from src.services.tracing import gemini_text
 
 _MAX_HTML_CHARS = 20_000
+_MAX_SCAN_DAYS = 7
+
+
+class _FlightList(PydanticBaseModel):
+    flights: list[FlightResult]
 
 
 def _build_search_url(params: SearchParams) -> str:
@@ -16,10 +22,6 @@ def _build_search_url(params: SearchParams) -> str:
 
 
 async def search_flights(page, params: SearchParams) -> list[FlightResult]:
-    """
-    Navigate to Skyscanner search URL, extract page text, ask Gemini
-    to parse flight results as JSON. Returns list[FlightResult].
-    """
     url = _build_search_url(params)
     try:
         await page.goto(url, wait_until="load", timeout=30_000)
@@ -32,43 +34,57 @@ async def search_flights(page, params: SearchParams) -> list[FlightResult]:
 
     prompt = (
         f"Extract all flight offers from this Skyscanner page for "
-        f"{params.origin} -> {params.destination} on {params.date_from}.\n"
-        f"Return a JSON array of objects with keys: "
-        f"origin, destination, date (YYYY-MM-DD), price (number), "
-        f"currency (string), airline (string or null), duration_minutes (int or null).\n"
-        f"If no flights found return [].\n\n"
+        f"{params.origin} -> {params.destination} on {params.date_from}. "
+        f"Use origin={params.origin}, destination={params.destination}, date={params.date_from}. "
+        f"If no flights found return an empty flights list.\n\n"
         f"PAGE CONTENT:\n{text}"
     )
 
-    raw = await gemini_text(name="skyscanner_parse_flights", prompt=prompt)
+    raw = await gemini_text(
+        name="skyscanner_parse_flights",
+        prompt=prompt,
+        response_format=_FlightList,
+    )
     try:
-        data = json.loads(raw.strip())
-        return [FlightResult(**item) for item in data]
+        return _FlightList.model_validate_json(raw).flights
     except Exception:
         return []
 
 
 def get_cheapest(results: list[FlightResult]) -> FlightResult | None:
-    """Return the flight with the lowest price, or None if list is empty."""
     return min(results, key=lambda f: f.price, default=None)
 
 
-async def scan_date_range(page, params: SearchParams) -> PriceCalendar:
-    """
-    Call search_flights for each day between date_from and date_to (inclusive).
-    Accumulates all results into a PriceCalendar.
-    """
+async def scan_date_range(
+    page, params: SearchParams, on_progress: ProgressCallback = None
+) -> PriceCalendar:
+    """Search each day in the range (capped at _MAX_SCAN_DAYS). Emits per-day progress."""
     start = date.fromisoformat(params.date_from)
     end = date.fromisoformat(params.date_to)
-    all_flights: list[FlightResult] = []
 
+    # Hard cap — scanning more days takes too long
+    capped_end = min(end, start + timedelta(days=_MAX_SCAN_DAYS - 1))
+    if capped_end < end and on_progress:
+        await on_progress(f"⚠ Date range capped to {_MAX_SCAN_DAYS} days ({start} → {capped_end})")
+
+    all_flights: list[FlightResult] = []
     current = start
-    while current <= end:
+    day_num = 0
+    while current <= capped_end:
+        day_num += 1
+        total = (capped_end - start).days + 1
+        if on_progress:
+            await on_progress(f"Scanning day {day_num}/{total}: {current}")
         day_params = params.model_copy(update={
             "date_from": current.isoformat(),
             "date_to": current.isoformat(),
         })
         flights = await search_flights(page, day_params)
+        if flights and on_progress:
+            cheapest = min(flights, key=lambda f: f.price)
+            await on_progress(f"  {current}: {len(flights)} flights, cheapest {cheapest.price} {cheapest.currency}")
+        elif on_progress:
+            await on_progress(f"  {current}: no flights found")
         all_flights.extend(flights)
         current += timedelta(days=1)
 
