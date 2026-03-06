@@ -10,14 +10,16 @@ Run tests:
 import os
 import threading
 import time
+from datetime import datetime, timezone
 
 import bcrypt
+import httpx
+import pymongo
 import pytest
 import uvicorn
-from motor.motor_asyncio import AsyncIOMotorClient
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
-# ── Test environment ──────────────────────────────────────────────────────────
+# ── Test environment (set before any src import) ──────────────────────────────
 
 TEST_MONGO_URI = "mongodb://localhost:27018"
 TEST_MONGO_DB = "signals_test"
@@ -26,7 +28,6 @@ TEST_USER_PASSWORD = "testpassword123"
 APP_PORT = 18888
 APP_BASE_URL = f"http://localhost:{APP_PORT}"
 
-# Override settings before importing the app
 os.environ["MONGO_URI"] = TEST_MONGO_URI
 os.environ["MONGO_DB"] = TEST_MONGO_DB
 os.environ["JWT_SECRET"] = "e2e-test-secret-do-not-use-in-prod"
@@ -58,8 +59,6 @@ def live_server():
     """Start the FastAPI app in a background thread for the whole test session."""
     thread = _UvicornThread()
     thread.start()
-    # Wait until the server is ready
-    import httpx
     deadline = time.time() + 15
     while time.time() < deadline:
         try:
@@ -78,33 +77,25 @@ def live_server():
 @pytest.fixture(scope="session")
 def test_user(live_server):
     """
-    Ensure a FREE test user exists in the test MongoDB.
-    Created once per session; dropped after.
+    Insert a FREE test user directly via sync pymongo.
+    Cleaned up after the session.
     """
-    import asyncio
-    from beanie import init_beanie
-    from src.models.user import User
+    client = pymongo.MongoClient(TEST_MONGO_URI)
+    db = client[TEST_MONGO_DB]
 
-    async def _setup():
-        client = AsyncIOMotorClient(TEST_MONGO_URI)
-        db = client[TEST_MONGO_DB]
-        await init_beanie(database=db, document_models=[User])
-        # Clean slate
-        await User.find(User.email == TEST_USER_EMAIL).delete()
-        hashed = bcrypt.hashpw(TEST_USER_PASSWORD.encode(), bcrypt.gensalt()).decode()
-        user = User(
-            email=TEST_USER_EMAIL,
-            hashed_password=hashed,
-            is_verified=True,
-            subscription_type="FREE",
-        )
-        await user.insert()
-        return user
+    db.users.delete_many({"email": TEST_USER_EMAIL})
+    hashed = bcrypt.hashpw(TEST_USER_PASSWORD.encode(), bcrypt.gensalt()).decode()
+    db.users.insert_one({
+        "email": TEST_USER_EMAIL,
+        "hashed_password": hashed,
+        "is_verified": True,
+        "subscription_type": "FREE",
+        "verify_token": None,
+        "created_at": datetime.now(timezone.utc),
+    })
+    client.close()
 
-    loop = asyncio.new_event_loop()
-    user = loop.run_until_complete(_setup())
-    loop.close()
-    yield user
+    yield {"email": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
 
 
 # ── Playwright fixtures ───────────────────────────────────────────────────────
@@ -123,10 +114,9 @@ def page(browser_instance: Browser, live_server, test_user) -> Page:
     context: BrowserContext = browser_instance.new_context(base_url=APP_BASE_URL)
     pg = context.new_page()
 
-    # Log in
-    pg.goto("/login")
-    pg.fill('input[name="email"]', TEST_USER_EMAIL)
-    pg.fill('input[name="password"]', TEST_USER_PASSWORD)
+    pg.goto("/auth/login")
+    pg.fill('input[name="email"]', test_user["email"])
+    pg.fill('input[name="password"]', test_user["password"])
     pg.click('button[type="submit"]')
     pg.wait_for_url("**/app**", timeout=10_000)
 
