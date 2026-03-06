@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from src.crawling.agent import crawl_text
+from src.crawling.site_agents import get_agent_for_url
 
 
 class PremiumRequired(Exception):
@@ -26,24 +27,41 @@ async def run_digest(signal: Signal, on_progress=None, subscription_type: str = 
 
     for url in signal.source_urls:
         await emit(f"Crawling {url} ...")
-        result = await crawl_text(url)
-        if result.get("blocked"):
-            if subscription_type == "FREE":
-                raise PremiumRequired()
-            else:
-                await emit(f"⚠ {url} — blocked by bot protection")
-        elif result.get("text"):
-            sources_text.append(
-                f"## {result['title'] or url}\nURL: {url}\nFetched: {result['fetched_at']}\n\n{result['text']}"
+        agent_cls = get_agent_for_url(url)
+        if agent_cls:
+            await emit(f"Using site agent for {url} ...")
+            agent_result = await agent_cls().run(
+                query=signal.source_extraction_query or url,
+                signal_id=str(signal.id),
+                persisted_memory=signal.agent_memory or {},
+                on_progress=on_progress,
             )
-            source_refs.append(SourceRef(
-                title=result["title"] or url,
-                url=url,
-                date=result["fetched_at"][:10],
-            ))
-            await emit(f"✓ {url} — {len(result['text']):,} chars")
+            signal.agent_memory = agent_result.persisted_memory
+            if agent_result.digest_content:
+                sources_text.append(agent_result.digest_content)
+                source_refs.append(SourceRef(title=url, url=url))
+            elif agent_result.value is not None:
+                sources_text.append(f"Price found: {agent_result.value}")
+                source_refs.append(SourceRef(title=url, url=url))
         else:
-            await emit(f"⚠ Could not fetch {url}")
+            result = await crawl_text(url)
+            if result.get("blocked"):
+                if subscription_type == "FREE":
+                    raise PremiumRequired()
+                else:
+                    await emit(f"⚠ {url} — blocked by bot protection")
+            elif result.get("text"):
+                sources_text.append(
+                    f"## {result['title'] or url}\nURL: {url}\nFetched: {result['fetched_at']}\n\n{result['text']}"
+                )
+                source_refs.append(SourceRef(
+                    title=result["title"] or url,
+                    url=url,
+                    date=result["fetched_at"][:10],
+                ))
+                await emit(f"✓ {url} — {len(result['text']):,} chars")
+            else:
+                await emit(f"⚠ Could not fetch {url}")
 
     if signal.search_query and settings.brave_search_api_key:
         await emit(f"Searching web: {signal.search_query} ...")
