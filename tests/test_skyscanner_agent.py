@@ -13,6 +13,26 @@ def _make_done_json(value: float | None = None, summary: str = "") -> str:
 
 
 @pytest.mark.asyncio
+async def test_agent_rejects_non_flight_query():
+    """Agent must return an error result when the query is not about flights."""
+    from src.crawling.site_agents.skyscanner.agent import SkyAgent
+
+    with patch("src.crawling.site_agents.skyscanner.agent.gemini_text",
+               AsyncMock(return_value="no")):
+        agent = SkyAgent()
+        result = await agent.run(
+            query="what is the capital of France?",
+            signal_id="abc",
+            persisted_memory={},
+            on_progress=None,
+        )
+
+    assert result.value is None
+    assert result.digest_content is not None
+    assert "not a flight" in result.digest_content.lower()
+
+
+@pytest.mark.asyncio
 async def test_agent_run_returns_value_for_monitor_query():
     """Agent must call search_flights tool and return cheapest price as value."""
     from src.crawling.site_agents.skyscanner.agent import SkyAgent
@@ -21,9 +41,8 @@ async def test_agent_run_returns_value_for_monitor_query():
     cheap_flight = FlightResult(origin="LHR", destination="MAD",
                                 date="2026-04-01", price=89.0, currency="EUR")
 
-    # First Gemini call: LLM picks search_flights tool
-    # Second Gemini call: LLM sees result, calls done
     gemini_responses = [
+        "yes",  # classifier
         _make_tool_call_json("search_flights", {
             "origin": "LHR", "destination": "MAD",
             "date_from": "2026-04-01", "date_to": "2026-04-01",
@@ -60,9 +79,11 @@ async def test_agent_run_stops_after_max_iterations():
     """If LLM never calls done, agent must stop after MAX_ITERATIONS."""
     from src.crawling.site_agents.skyscanner.agent import SkyAgent, MAX_ITERATIONS
 
-    # Always return a tool call (never done)
+    # classifier returns yes, then always tool calls (never done)
+    responses = ["yes"] + [_make_tool_call_json("get_cheapest", {})] * (MAX_ITERATIONS + 2)
+
     with patch("src.crawling.site_agents.skyscanner.agent.gemini_text",
-               AsyncMock(return_value=_make_tool_call_json("get_cheapest", {}))), \
+               AsyncMock(side_effect=responses)), \
          patch("src.crawling.site_agents.skyscanner.agent.search_flights",
                AsyncMock(return_value=[])), \
          patch("src.crawling.site_agents.skyscanner.agent.get_page",
@@ -75,7 +96,6 @@ async def test_agent_run_stops_after_max_iterations():
         agent = SkyAgent()
         result = await agent.run("cheapest flight", "abc", {}, None)
 
-    # Should return a result (not raise) after hitting MAX_ITERATIONS
     assert result is not None
 
 
@@ -94,6 +114,7 @@ async def test_agent_loads_and_saves_persisted_memory():
                           date="2026-04-01", price=89.0, currency="EUR")
 
     gemini_responses = [
+        "yes",  # classifier
         _make_tool_call_json("search_flights", {
             "origin": "LHR", "destination": "MAD",
             "date_from": "2026-04-01", "date_to": "2026-04-01",
@@ -116,6 +137,5 @@ async def test_agent_loads_and_saves_persisted_memory():
         agent = SkyAgent()
         result = await agent.run("cheapest flight LHR MAD", "abc", prior_memory, None)
 
-    # Both old and new history entries must be present
     history = result.persisted_memory["price_history"]
     assert len(history) >= 2

@@ -58,13 +58,156 @@
         </div>
       </div>
 
-      <!-- Phase 1a: Monitor form (unchanged) -->
+      <!-- Phase 1a-source: Monitor source picker -->
+      <div id="phase-monitor-source" class="hidden px-6 py-5">
+        <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+        <p class="text-xs font-mono text-gray-500 mb-4 tracking-wider">CHOOSE DATA SOURCE</p>
+        <div class="space-y-3">
+          <button onclick="selectMonitorSource('url')"
+            class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-green/40 hover:bg-neon-green/5 transition-all text-left flex items-start gap-4">
+            <span class="text-2xl leading-none">🔗</span>
+            <div>
+              <div class="text-neon-green font-mono font-bold text-sm mb-1">MY URL</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Paste any URL and describe what number to extract.</p>
+            </div>
+          </button>
+          <button onclick="selectMonitorSource('skyscanner')"
+            class="w-full p-4 rounded-lg border border-dark-border bg-dark-bg hover:border-neon-green/40 hover:bg-neon-green/5 transition-all text-left flex items-start gap-4">
+            <span class="text-2xl leading-none">✈️</span>
+            <div>
+              <div class="text-neon-green font-mono font-bold text-sm mb-1">SKYSCANNER FLIGHTS</div>
+              <p class="text-gray-500 text-xs font-mono leading-relaxed">Track cheapest flight price for a route and date range.</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Phase 1a-sky: Skyscanner monitor form -->
+      <div id="phase-sky-monitor" class="hidden" style="perspective: 1000px;">
+        <div id="sky-flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
+
+          <!-- FRONT: Skyscanner form -->
+          <div style="backface-visibility: hidden;" class="px-6 py-5">
+            <button onclick="showMonitorSourcePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
+                <input id="sky-name" type="text" placeholder="e.g. SIN → SVQ Price"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-600 font-mono mb-1">FROM (city or IATA)</label>
+                  <input id="sky-origin" type="text" placeholder="e.g. Singapore or SIN"
+                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 font-mono mb-1">TO (city or IATA)</label>
+                  <input id="sky-dest" type="text" placeholder="e.g. Seville or SVQ"
+                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-600 font-mono mb-1">DATE FROM</label>
+                  <input id="sky-date-from" type="date"
+                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 font-mono mb-1">DATE TO</label>
+                  <input id="sky-date-to" type="date"
+                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
+                {% if user.subscription_type == "FREE" %}
+                <div class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-500 flex items-center justify-between">
+                  <span>24h</span>
+                  <a href="mailto:juan.roldan@bluggie.com?subject=Signals upgrade"
+                     class="text-neon-blue hover:text-neon-green transition-colors">Upgrade for 1h–12h</a>
+                </div>
+                <input type="hidden" id="sky-interval" value="1440" />
+                {% else %}
+                <select id="sky-interval"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50">
+                  <option value="60">1h</option>
+                  <option value="120">2h</option>
+                  <option value="360">6h</option>
+                  <option value="720">12h</option>
+                  <option value="1440">24h</option>
+                </select>
+                {% endif %}
+              </div>
+              <p id="sky-error" class="hidden text-red-400 text-xs font-mono"></p>
+              <button id="sky-dry-run-btn" onclick="runSkyDryRun()"
+                class="w-full py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-xs font-mono rounded hover:bg-neon-green/20 transition-all">
+                DRY RUN
+              </button>
+            </div>
+
+            <div id="sky-console" class="hidden mt-4">
+              <div class="bg-black border border-dark-border rounded overflow-hidden">
+                <div class="flex items-center gap-2 px-3 py-1.5 border-b border-dark-border">
+                  <span class="text-xs text-gray-600 font-mono tracking-wider">CONSOLE</span>
+                  <span id="sky-console-spinner" class="hidden text-neon-green text-xs font-mono animate-pulse">●</span>
+                </div>
+                <div id="sky-console-output"
+                     class="px-3 py-2 font-mono text-xs text-neon-green leading-relaxed h-56 overflow-y-auto overflow-x-hidden break-all">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BACK: Skyscanner preview result -->
+          <div id="sky-card-back" style="backface-visibility: hidden; transform: rotateY(180deg); top: 0; left: 0; right: 0;" class="px-6 py-5 absolute">
+            <div class="border border-dark-border rounded p-4 space-y-3 text-xs font-mono mb-5">
+              <div class="text-gray-500 tracking-wider mb-3">PREVIEW RESULT</div>
+              <div class="flex gap-3 items-center">
+                <span class="text-gray-600 w-20 shrink-0">CHEAPEST</span>
+                <span id="sky-preview-value" class="font-bold text-xl text-neon-green"></span>
+              </div>
+              <div class="flex gap-3">
+                <span class="text-gray-600 w-20 shrink-0">ROUTE</span>
+                <span id="sky-preview-route" class="text-neon-blue"></span>
+              </div>
+            </div>
+
+            <form id="sky-save-form" method="POST" action="/signals"
+                  hx-post="/signals" hx-target="#create-modal" hx-swap="outerHTML">
+              <input type="hidden" name="signal_type" value="monitor" />
+              <input type="hidden" name="source_url" value="https://www.skyscanner.com" />
+              <input type="hidden" name="source_urls_json" value="[]" />
+              <input type="hidden" name="search_query" value="" />
+              <input type="hidden" name="chart_type" value="line" />
+              <input type="hidden" name="name" id="sky-sf-name" />
+              <input type="hidden" name="source_extraction_query" id="sky-sf-query" />
+              <input type="hidden" name="interval_minutes" id="sky-sf-interval" />
+              <input type="hidden" name="source_initial_value" id="sky-sf-initial-value" />
+
+              <div class="flex gap-3">
+                <button type="button" onclick="skyFlipBack()"
+                  class="flex-1 py-2 border border-dark-border text-gray-500 text-xs font-mono rounded hover:border-gray-500 hover:text-gray-300 transition-all">
+                  ← TRY AGAIN
+                </button>
+                <button type="submit"
+                  class="flex-1 py-2 bg-neon-green text-black font-bold text-xs rounded tracking-wider hover:bg-neon-green/90 transition-all">
+                  SAVE SIGNAL
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Phase 1a: Monitor form (URL) -->
       <div id="phase-monitor" class="hidden" style="perspective: 1000px;">
         <div id="flip-inner" style="transition: transform 0.5s; transform-style: preserve-3d; position: relative;">
 
           <!-- FRONT: Monitor form -->
           <div style="backface-visibility: hidden;" class="px-6 py-5">
-            <button onclick="showTypePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
+            <button onclick="showMonitorSourcePicker()" class="text-gray-600 hover:text-gray-300 text-xs font-mono mb-4 flex items-center gap-1 transition-colors">← BACK</button>
             <div class="space-y-4">
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
@@ -370,18 +513,39 @@
   // ─── Phase navigation ───────────────────────────────────────────────────────
   window.showTypePicker = function() {
     document.getElementById('phase-type-picker').classList.remove('hidden');
+    document.getElementById('phase-monitor-source').classList.add('hidden');
     document.getElementById('phase-monitor').classList.add('hidden');
+    document.getElementById('phase-sky-monitor').classList.add('hidden');
     document.getElementById('phase-digest').classList.add('hidden');
     document.getElementById('phase-digest-source').classList.add('hidden');
-    // Reset monitor state so re-entering is clean
     document.getElementById('flip-inner').style.transform = '';
+    document.getElementById('sky-flip-inner').style.transform = '';
     clearConsole();
+    clearSkyConsole();
   };
 
   window.showMonitorForm = function() {
+    showMonitorSourcePicker();
+  };
+
+  window.showMonitorSourcePicker = function() {
     document.getElementById('phase-type-picker').classList.add('hidden');
-    document.getElementById('phase-monitor').classList.remove('hidden');
-    document.getElementById('phase-digest').classList.add('hidden');
+    document.getElementById('phase-monitor-source').classList.remove('hidden');
+    document.getElementById('phase-monitor').classList.add('hidden');
+    document.getElementById('phase-sky-monitor').classList.add('hidden');
+    document.getElementById('flip-inner').style.transform = '';
+    document.getElementById('sky-flip-inner').style.transform = '';
+    clearConsole();
+    clearSkyConsole();
+  };
+
+  window.selectMonitorSource = function(type) {
+    document.getElementById('phase-monitor-source').classList.add('hidden');
+    if (type === 'url') {
+      document.getElementById('phase-monitor').classList.remove('hidden');
+    } else if (type === 'skyscanner') {
+      document.getElementById('phase-sky-monitor').classList.remove('hidden');
+    }
   };
 
   let digestSourceType = 'search';
@@ -719,6 +883,116 @@
     });
 
     document.getElementById('digest-flip-inner').style.transform = 'rotateY(180deg)';
+  };
+
+  // ─── Skyscanner monitor form helpers ─────────────────────────────────────────
+  function clearSkyConsole() {
+    document.getElementById('sky-console-output').innerHTML = '';
+    document.getElementById('sky-console').classList.add('hidden');
+    document.getElementById('sky-console-spinner').classList.add('hidden');
+  }
+
+  function skyConsoleLog(msg, cls) {
+    const output = document.getElementById('sky-console-output');
+    const line = document.createElement('div');
+    line.className = cls || 'text-neon-green';
+    line.textContent = '› ' + msg;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  window.skyFlipBack = function() {
+    document.getElementById('sky-flip-inner').style.transform = '';
+    document.getElementById('sky-error').classList.add('hidden');
+    clearSkyConsole();
+  };
+
+  window.runSkyDryRun = async function() {
+    const origin = document.getElementById('sky-origin').value.trim();
+    const dest = document.getElementById('sky-dest').value.trim();
+    const dateFrom = document.getElementById('sky-date-from').value;
+    const dateTo = document.getElementById('sky-date-to').value;
+    const name = document.getElementById('sky-name').value.trim();
+    const interval = document.getElementById('sky-interval').value;
+    const errEl = document.getElementById('sky-error');
+
+    if (!origin || !dest || !dateFrom || !dateTo) {
+      errEl.textContent = 'From, To, and both dates are required.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const query = `cheapest one-way flight from ${origin} to ${dest} between ${dateFrom} and ${dateTo}`;
+
+    const btn = document.getElementById('sky-dry-run-btn');
+    btn.disabled = true;
+    btn.textContent = '⟳ SEARCHING...';
+    errEl.classList.add('hidden');
+    clearSkyConsole();
+    document.getElementById('sky-console').classList.remove('hidden');
+    document.getElementById('sky-console-spinner').classList.remove('hidden');
+
+    let res;
+    try {
+      res = await fetch('/signals/sky-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+    } catch (e) {
+      document.getElementById('sky-console-spinner').classList.add('hidden');
+      errEl.textContent = '⚠ Connection error. Please try again.';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'DRY RUN';
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let data = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.msg !== undefined) {
+            skyConsoleLog(event.msg);
+          } else {
+            data = event;
+          }
+        } catch (_) {}
+      }
+    }
+
+    document.getElementById('sky-console-spinner').classList.add('hidden');
+    btn.disabled = false;
+    btn.textContent = 'DRY RUN';
+
+    if (!data || data.error) {
+      skyConsoleLog('⚠ ' + (data ? data.error : 'No response received.'), 'text-red-400');
+      return;
+    }
+
+    skyConsoleLog('✓ Done.', 'text-gray-500');
+
+    document.getElementById('sky-preview-value').textContent = '€' + data.value;
+    document.getElementById('sky-preview-route').textContent = `${origin} → ${dest} (${dateFrom} – ${dateTo})`;
+
+    document.getElementById('sky-sf-name').value = name || `${origin} → ${dest} Price`;
+    document.getElementById('sky-sf-query').value = query;
+    document.getElementById('sky-sf-interval').value = interval;
+    document.getElementById('sky-sf-initial-value').value = data.value != null ? data.value : '';
+
+    document.getElementById('sky-flip-inner').style.transform = 'rotateY(180deg)';
   };
 })();
 </script>

@@ -10,6 +10,19 @@ from src.services.tracing import gemini_text
 
 MAX_ITERATIONS = 5
 
+
+async def _is_flight_query(query: str) -> bool:
+    """Return True only if the query is about finding or tracking flight prices."""
+    raw = await gemini_text(
+        name="sky_flight_classifier",
+        prompt=(
+            "Does this query ask about finding, searching, or tracking flight prices or routes? "
+            "Answer only 'yes' or 'no'.\n"
+            f"Query: {query}"
+        ),
+    )
+    return raw.strip().lower().startswith("y")
+
 _TOOLS: list[AgentTool] = [
     AgentTool(
         name="search_flights",
@@ -71,6 +84,13 @@ class SkyAgent:
         async def emit(msg: str) -> None:
             if on_progress:
                 await on_progress(msg)
+
+        if not await _is_flight_query(query):
+            return AgentResult(
+                value=None,
+                digest_content="Not a flight query. Skyscanner agent only handles flight price searches.",
+                persisted_memory={},
+            )
 
         memory = SkyMemory.from_persisted(persisted_memory)
         final_value: float | None = None
