@@ -164,7 +164,7 @@ async def get_signal_card(request: Request, signal_id: PydanticObjectId, current
             except Exception:
                 pass
 
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": digest_data})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": digest_data, "user": current_user})
 
 
 @router.post("/signals", response_class=HTMLResponse)
@@ -277,7 +277,7 @@ async def toggle_alert(request: Request, signal_id: PydanticObjectId, current_us
         return HTMLResponse(status_code=404)
     signal.alert_enabled = not signal.alert_enabled
     await signal.save()
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": {}})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "digest_data": {}, "user": current_user})
 
 
 @router.post("/signals/{signal_id}/toggle-alert-page")
@@ -295,6 +295,8 @@ async def toggle_alert_page(signal_id: PydanticObjectId, current_user: User = De
 async def run_now(request: Request, signal_id: PydanticObjectId, current_user: User = Depends(get_current_user)):
     if isinstance(current_user, RedirectResponse):
         return current_user
+    if current_user.subscription_type == "FREE":
+        return HTMLResponse(status_code=403)
     from src.templates_config import templates
     signal = await Signal.get(signal_id)
     if not signal or signal.user_id != current_user.id:
@@ -302,7 +304,7 @@ async def run_now(request: Request, signal_id: PydanticObjectId, current_user: U
     signal.next_run_at = datetime.now(timezone.utc) + timedelta(minutes=signal.interval_minutes)
     await signal.save()
     asyncio.create_task(_run_signal_job(str(signal_id)))
-    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "running": True, "digest_data": {}})
+    return templates.TemplateResponse(request, "partials/signal_card.html", {"signal": signal, "running": True, "digest_data": {}, "user": current_user})
 
 
 @router.post("/signals/{signal_id}/update", response_class=HTMLResponse)

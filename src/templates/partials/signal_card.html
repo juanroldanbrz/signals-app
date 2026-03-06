@@ -83,6 +83,11 @@
       class="px-2 py-1 rounded text-xs font-mono text-neon-green border border-neon-green/30 animate-pulse cursor-default">
       RUNNING...
     </button>
+    {% elif user is defined and user.subscription_type == "FREE" %}
+    <button disabled title="Upgrade to run signals on demand"
+      class="px-2 py-1 rounded text-xs font-mono text-gray-700 border border-dark-border cursor-not-allowed">
+      RUN NOW
+    </button>
     {% else %}
     <button
       hx-post="/signals/{{ signal.id }}/run-now"
