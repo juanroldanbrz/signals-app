@@ -40,7 +40,7 @@ async def search_flights(
     # Phase 1: HTML shell (includes __internal JSON in <script>) — fires quickly
     try:
         await page.wait_for_function(
-            "document.body.textContent.length > 5000", timeout=30_000
+            "document.body.textContent.length > 5000", timeout=120_000
         )
     except Exception:
         await emit("  ⚠ page content threshold not reached")
@@ -48,10 +48,10 @@ async def search_flights(
     # Phase 2: React renders flight cards after its API calls complete — can be slow
     # Use state="attached" (DOM presence only) — CSS blocking can prevent "visible" state
     try:
-        await page.wait_for_selector("[data-testid='ticket']", state="attached", timeout=30_000)
+        await page.wait_for_selector("[data-testid='ticket']", state="attached", timeout=120_000)
         await emit("  flight results rendered")
     except Exception:
-        await emit("  ⚠ ticket selector timed out (30s) — no flights rendered yet")
+        await emit("  ⚠ ticket selector timed out (120s) — no flights rendered yet")
 
     # Extract [data-testid="ticket"] elements — confirmed by exploration script
     try:

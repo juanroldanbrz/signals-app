@@ -144,7 +144,8 @@ class SkyAgent:
                 f"    Dubai → DXB, Bangkok → BKK, Seville → SVQ.\n"
                 f"  - Use city codes (e.g. TYO, LON, NYC) for 'any airport' searches.\n"
                 f"  - Dates must be YYYY-MM-DD format and MUST be after {today}.\n"
-                f"When you have the cheapest price, set tool=done with the numeric value."
+                f"RULE: If the session state already shows 'Cheapest so far', call tool=done immediately "
+                f"with that price as value. Do NOT search again."
             )
 
             raw = await gemini_text(
