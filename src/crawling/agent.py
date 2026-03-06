@@ -24,6 +24,26 @@ async def _emit(msg: str, on_progress: ProgressCallback) -> None:
 
 _MAX_TEXT_CHARS = 32_000
 
+_BLOCK_PATTERNS = [
+    "just a moment",
+    "attention required",
+    "access denied",
+    "403 forbidden",
+    "please verify you are a human",
+    "please complete the security check",
+    "checking your browser",
+    "enable javascript and cookies",
+    "captcha",
+    "bot traffic detected",
+    "ddos protection",
+    "are you a robot",
+]
+
+
+def _is_blocked(title: str, html: str) -> bool:
+    sample = (title + " " + html[:3000]).lower()
+    return any(p in sample for p in _BLOCK_PATTERNS)
+
 
 def _html_to_markdown(html: str) -> str:
     """Strip boilerplate tags and convert HTML to clean markdown."""
@@ -57,11 +77,13 @@ async def crawl_text(url: str) -> dict:
             html = await page.content()
             title = await page.title()
             await browser.close()
+        blocked = _is_blocked(title, html)
         return {
-            "text": _html_to_markdown(html),
+            "text": "" if blocked else _html_to_markdown(html),
             "title": title,
             "url": url,
             "fetched_at": fetched_at,
+            "blocked": blocked,
         }
     except Exception as e:
         return {"text": "", "title": "", "url": url, "fetched_at": fetched_at, "error": str(e)[:200]}
@@ -179,6 +201,12 @@ async def crawl(
             scroll_y = await page.evaluate("window.pageYOffset")
             page_h = await page.evaluate("document.body.scrollHeight")
             await _emit(f"Page loaded — scroll position {scroll_y}px / {page_h}px total", on_progress)
+
+            _title = await page.title()
+            _html_sample = await page.content()
+            if _is_blocked(_title, _html_sample):
+                await browser.close()
+                return None, None, "BLOCKED", ""
 
             await _emit("Accepting cookies ...", on_progress)
             clicked = await accept_cookies(page)

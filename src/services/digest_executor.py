@@ -8,7 +8,7 @@ from src.services.brave import brave_search
 from src.services.tracing import gemini_text
 
 
-async def run_digest(signal: Signal, on_progress=None) -> dict:
+async def run_digest(signal: Signal, on_progress=None, subscription_type: str = "UNLIMITED") -> dict:
     """
     Crawl signal.source_urls, optionally call Brave Search, summarise with Gemini.
     Returns dict with: status, raw_result, digest_content (JSON str | None), content (DigestContent | None).
@@ -23,7 +23,12 @@ async def run_digest(signal: Signal, on_progress=None) -> dict:
     for url in signal.source_urls:
         await emit(f"Crawling {url} ...")
         result = await crawl_text(url)
-        if result.get("text"):
+        if result.get("blocked"):
+            if subscription_type == "FREE":
+                await emit(f"🔒 {url} — blocked (PREMIUM required)")
+            else:
+                await emit(f"⚠ {url} — blocked by bot protection")
+        elif result.get("text"):
             sources_text.append(
                 f"## {result['title'] or url}\nURL: {url}\nFetched: {result['fetched_at']}\n\n{result['text']}"
             )

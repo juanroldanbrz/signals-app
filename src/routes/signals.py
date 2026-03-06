@@ -62,7 +62,12 @@ async def preview_signal(body: PreviewRequest, current_user: User = Depends(get_
             screenshot_url = _save_screenshot(screenshot_bytes) if screenshot_bytes else None
 
             if value is None:
-                await queue.put({"type": "done", "error": raw, "screenshot_url": screenshot_url})
+                if raw == "BLOCKED" and current_user.subscription_type == "FREE":
+                    await queue.put({"type": "done", "error": "🔒 This website is blocked by bot protection and requires a PREMIUM plan to access."})
+                elif raw == "BLOCKED":
+                    await queue.put({"type": "done", "error": "⚠ This website is blocking automated access.", "screenshot_url": screenshot_url})
+                else:
+                    await queue.put({"type": "done", "error": raw, "screenshot_url": screenshot_url})
             elif body.chart_type == "flag":
                 await queue.put({"type": "done", "value": value, "flag": value == 1.0, "screenshot_url": screenshot_url, "note": note})
             else:
@@ -112,7 +117,7 @@ async def digest_preview(body: DigestPreviewRequest, current_user: User = Depend
 
     async def run_task() -> None:
         try:
-            result = await run_digest(_TempSignal(), on_progress=on_progress)
+            result = await run_digest(_TempSignal(), on_progress=on_progress, subscription_type=current_user.subscription_type)
             if result["status"] == "error":
                 await queue.put({"type": "done", "error": result["raw_result"]})
             else:
