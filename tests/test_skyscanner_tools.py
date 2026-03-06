@@ -83,7 +83,7 @@ async def test_scan_date_range_calls_search_per_day():
     mock_page = AsyncMock()
     call_count = 0
 
-    async def fake_search(page, params):
+    async def fake_search(page, params, **kwargs):
         nonlocal call_count
         call_count += 1
         return [FlightResult(origin=params.origin, destination=params.destination,
@@ -106,7 +106,7 @@ async def test_scan_date_range_caps_at_7_days():
     mock_page = AsyncMock()
     call_count = 0
 
-    async def fake_search(page, params):
+    async def fake_search(page, params, **kwargs):
         nonlocal call_count
         call_count += 1
         return []

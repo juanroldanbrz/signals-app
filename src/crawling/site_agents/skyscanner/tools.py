@@ -21,35 +21,56 @@ def _build_search_url(params: SearchParams) -> str:
     )
 
 
-async def search_flights(page, params: SearchParams) -> list[FlightResult]:
+async def search_flights(
+    page, params: SearchParams, on_progress: ProgressCallback = None
+) -> list[FlightResult]:
     url = _build_search_url(params)
+
+    async def emit(msg: str) -> None:
+        if on_progress:
+            await on_progress(msg)
+
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+        await page.goto(url, wait_until="load", timeout=45_000)
     except Exception:
         pass
 
-    # Wait for flight ticket cards — exploration confirmed selector [data-testid="ticket"]
+    # Match exploration script: wait for body to have substantial content, then settle
     try:
-        await page.wait_for_selector("[data-testid='ticket']", timeout=20_000)
+        await page.wait_for_function(
+            "document.body.textContent.length > 5000", timeout=30_000
+        )
+        await emit("  page loaded, waiting for results to stabilise...")
     except Exception:
-        # Fall back: wait for body to fill with content (results streaming in)
-        try:
-            await page.wait_for_function(
-                "document.body.textContent.length > 5000", timeout=15_000
-            )
-        except Exception:
-            pass
-        await page.wait_for_timeout(3_000)
+        await emit("  ⚠ page content threshold not reached")
+    await page.wait_for_timeout(5_000)
 
-    # Extract ticket card texts directly — each card contains airline, price, times
+    # Extract [data-testid="ticket"] elements — confirmed by exploration script
     try:
         tickets: list[str] = await page.evaluate("""() =>
             Array.from(document.querySelectorAll('[data-testid="ticket"]'))
                  .map(el => el.innerText)
         """)
-        text = "\n---\n".join(tickets) if tickets else await page.inner_text("body")
     except Exception:
-        text = await page.inner_text("body")
+        tickets = []
+
+    title = ""
+    try:
+        title = await page.title()
+    except Exception:
+        pass
+
+    if not tickets:
+        # Diagnostic: show page title + first 200 chars so we know what loaded
+        try:
+            preview = (await page.inner_text("body"))[:200].replace("\n", " ")
+        except Exception:
+            preview = "(could not read body)"
+        await emit(f"  ⚠ 0 ticket elements — title={title!r} — preview: {preview}")
+        return []
+
+    await emit(f"  found {len(tickets)} ticket elements on {title!r}")
+    text = "\n---\n".join(tickets)
     text = text[:_MAX_HTML_CHARS]
 
     prompt = (
@@ -104,7 +125,7 @@ async def scan_date_range(
             "date_from": current.isoformat(),
             "date_to": current.isoformat(),
         })
-        flights = await search_flights(page, day_params)
+        flights = await search_flights(page, day_params, on_progress=on_progress)
         if flights and on_progress:
             cheapest = min(flights, key=lambda f: f.price)
             await on_progress(f"  {current}: {len(flights)} flights, cheapest {cheapest.price} {cheapest.currency}")
