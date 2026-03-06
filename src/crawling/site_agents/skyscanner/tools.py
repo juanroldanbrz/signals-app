@@ -28,27 +28,38 @@ async def search_flights(page, params: SearchParams) -> list[FlightResult]:
     except Exception:
         pass
 
-    # Wait for flight results to appear (SPA loads data after initial HTML)
+    # Wait for flight ticket cards — exploration confirmed selector [data-testid="ticket"]
     try:
-        await page.wait_for_selector("[data-testid='price'], .BpkText_bpk-text--xl", timeout=12_000)
+        await page.wait_for_selector("[data-testid='ticket']", timeout=20_000)
     except Exception:
-        # No price element found — give it a flat extra wait as fallback
-        await page.wait_for_timeout(6_000)
+        # Fall back: wait for body to fill with content (results streaming in)
+        try:
+            await page.wait_for_function(
+                "document.body.textContent.length > 5000", timeout=15_000
+            )
+        except Exception:
+            pass
+        await page.wait_for_timeout(3_000)
 
-    # inner_text gives only visible text — no HTML tags, scripts, or styles
+    # Extract ticket card texts directly — each card contains airline, price, times
     try:
-        text = await page.inner_text("body")
+        tickets: list[str] = await page.evaluate("""() =>
+            Array.from(document.querySelectorAll('[data-testid="ticket"]'))
+                 .map(el => el.innerText)
+        """)
+        text = "\n---\n".join(tickets) if tickets else await page.inner_text("body")
     except Exception:
-        text = await page.content()
+        text = await page.inner_text("body")
     text = text[:_MAX_HTML_CHARS]
 
     prompt = (
-        f"Extract all flight offers from this Skyscanner page for "
-        f"{params.origin} -> {params.destination} on {params.date_from}. "
-        f"Use origin={params.origin}, destination={params.destination}, date={params.date_from}. "
-        f"Prices are usually shown as numbers followed by a currency symbol (e.g. €89, $120). "
-        f"If no flights found return an empty flights list.\n\n"
-        f"PAGE CONTENT:\n{text}"
+        f"These are flight ticket cards from Skyscanner for "
+        f"{params.origin} → {params.destination} on {params.date_from}.\n"
+        f"Each block separated by --- is one ticket. Extract price and airline from each.\n"
+        f"Use origin={params.origin}, destination={params.destination}, date={params.date_from}.\n"
+        f"Prices may appear as '106 €', '€106', '$120', '173 EUR' etc.\n"
+        f"If no tickets found return an empty flights list.\n\n"
+        f"TICKETS:\n{text}"
     )
 
     raw = await gemini_text(
