@@ -67,7 +67,16 @@ _TOOLS: list[AgentTool] = [
 
 
 def _tools_description() -> str:
-    return "\n".join(f"- {t.name}: {t.description}" for t in _TOOLS)
+    lines = []
+    for t in _TOOLS:
+        props = t.parameters.get("properties", {})
+        required = t.parameters.get("required", [])
+        params = ", ".join(
+            f"{k} (required)" if k in required else k
+            for k in props
+        )
+        lines.append(f"- {t.name}({params}): {t.description}")
+    return "\n".join(lines)
 
 
 class SkyAgent:
@@ -112,10 +121,16 @@ class SkyAgent:
             raw = await gemini_text(name="sky_agent_orchestrator", prompt=prompt)
 
             try:
-                call = json.loads(raw.strip())
+                text = raw.strip()
+                if text.startswith("```"):
+                    text = text.split("```", 2)[1]
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
+                call = json.loads(text)
             except Exception:
                 await emit(f"Could not parse LLM response: {raw[:80]}")
-                break
+                continue
 
             tool_name = call.get("tool")
 
