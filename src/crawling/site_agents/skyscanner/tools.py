@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date, timedelta
 from pydantic import BaseModel as PydanticBaseModel
 from src.crawling.browser import get_page
@@ -113,42 +114,44 @@ def get_cheapest(results: list[FlightResult]) -> FlightResult | None:
 async def scan_date_range(
     playwright, params: SearchParams, on_progress: ProgressCallback = None
 ) -> PriceCalendar:
-    """Search each day in the range (capped at _MAX_SCAN_DAYS). Creates a fresh browser per day."""
+    """Search all days in parallel (capped at _MAX_SCAN_DAYS). Each day gets its own browser."""
     start = date.fromisoformat(params.date_from)
     end = date.fromisoformat(params.date_to)
 
-    # Hard cap — scanning more days takes too long
     capped_end = min(end, start + timedelta(days=_MAX_SCAN_DAYS - 1))
     if capped_end < end and on_progress:
         await on_progress(f"⚠ Date range capped to {_MAX_SCAN_DAYS} days ({start} → {capped_end})")
 
-    all_flights: list[FlightResult] = []
+    days: list[date] = []
     current = start
-    day_num = 0
     while current <= capped_end:
-        day_num += 1
-        total = (capped_end - start).days + 1
-        day_url = _build_search_url(params.model_copy(update={
-            "date_from": current.isoformat(), "date_to": current.isoformat(),
-        }))
-        if on_progress:
-            await on_progress(f"Scanning day {day_num}/{total}: {current} → {day_url}")
+        days.append(current)
+        current += timedelta(days=1)
+
+    total = len(days)
+    if on_progress:
+        await on_progress(f"Scanning {total} days in parallel…")
+
+    async def _search_day(day: date) -> list[FlightResult]:
         day_params = params.model_copy(update={
-            "date_from": current.isoformat(),
-            "date_to": current.isoformat(),
+            "date_from": day.isoformat(),
+            "date_to": day.isoformat(),
         })
-        # Fresh browser per day — BrightData CDP closes after each navigation
+        if on_progress:
+            await on_progress(f"  → {day}: {_build_search_url(day_params)}")
         browser, page = await get_page("https://www.skyscanner.com", playwright)
         try:
             flights = await search_flights(page, day_params, on_progress=on_progress)
         finally:
             await browser.close()
-        if flights and on_progress:
-            cheapest = min(flights, key=lambda f: f.price)
-            await on_progress(f"  {current}: {len(flights)} flights, cheapest {cheapest.price} {cheapest.currency}")
-        elif on_progress:
-            await on_progress(f"  {current}: no flights found")
-        all_flights.extend(flights)
-        current += timedelta(days=1)
+        if on_progress:
+            if flights:
+                cheapest = min(flights, key=lambda f: f.price)
+                await on_progress(f"  ✓ {day}: {len(flights)} flights, cheapest {cheapest.price} {cheapest.currency}")
+            else:
+                await on_progress(f"  ✗ {day}: no flights found")
+        return flights
 
+    results = await asyncio.gather(*[_search_day(day) for day in days])
+    all_flights = [f for day_flights in results for f in day_flights]
     return PriceCalendar(params=params, entries=all_flights)
