@@ -110,10 +110,10 @@ async def test_sky_preview_creates_skyscanner_monitor_signal(client):
     resp = await c.post(
         "/signals",
         data={
-            "name": "SIN → SVQ Price",
+            "name": "Seville to Singapore",
             "signal_type": "monitor",
             "source_url": "https://www.skyscanner.com",
-            "source_extraction_query": "cheapest flight from SIN to SVQ between 2026-03-10 and 2026-03-15",
+            "source_extraction_query": "Cheapest one-way flight from Seville to Singapore between March 10 and March 15 2026",
             "chart_type": "line",
             "interval_minutes": "1440",
             "source_urls_json": "[]",
@@ -124,6 +124,6 @@ async def test_sky_preview_creates_skyscanner_monitor_signal(client):
     signal = await Signal.find_one(Signal.user_id == user.id)
     assert signal is not None
     assert signal.source_url == "https://www.skyscanner.com"
-    assert "SIN" in signal.source_extraction_query
-    assert "SVQ" in signal.source_extraction_query
+    assert "Seville" in signal.source_extraction_query
+    assert "Singapore" in signal.source_extraction_query
     assert signal.signal_type == "monitor"

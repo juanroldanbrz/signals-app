@@ -92,32 +92,13 @@
             <div class="space-y-4">
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">NAME</label>
-                <input id="sky-name" type="text" placeholder="e.g. SIN → SVQ Price"
+                <input id="sky-name" type="text" placeholder="e.g. SIN → SVQ cheapest"
                   class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
               </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-600 font-mono mb-1">FROM (city or IATA)</label>
-                  <input id="sky-origin" type="text" placeholder="e.g. Singapore or SIN"
-                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-600 font-mono mb-1">TO (city or IATA)</label>
-                  <input id="sky-dest" type="text" placeholder="e.g. Seville or SVQ"
-                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs text-gray-600 font-mono mb-1">DATE FROM</label>
-                  <input id="sky-date-from" type="date"
-                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-                </div>
-                <div>
-                  <label class="block text-xs text-gray-600 font-mono mb-1">DATE TO</label>
-                  <input id="sky-date-to" type="date"
-                    class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50" />
-                </div>
+              <div>
+                <label class="block text-xs text-gray-600 font-mono mb-1">WHAT DO YOU WANT TO TRACK</label>
+                <textarea id="sky-query" rows="3" placeholder="e.g. Cheapest one-way flight from Seville to Singapore between March 10 and March 15 2026"
+                  class="w-full bg-dark-bg border border-dark-border rounded p-2 text-xs font-mono text-gray-200 focus:outline-none focus:border-neon-green/50 resize-none"></textarea>
               </div>
               <div>
                 <label class="block text-xs text-gray-600 font-mono mb-1">CHECK INTERVAL</label>
@@ -908,21 +889,16 @@
   };
 
   window.runSkyDryRun = async function() {
-    const origin = document.getElementById('sky-origin').value.trim();
-    const dest = document.getElementById('sky-dest').value.trim();
-    const dateFrom = document.getElementById('sky-date-from').value;
-    const dateTo = document.getElementById('sky-date-to').value;
+    const query = document.getElementById('sky-query').value.trim();
     const name = document.getElementById('sky-name').value.trim();
     const interval = document.getElementById('sky-interval').value;
     const errEl = document.getElementById('sky-error');
 
-    if (!origin || !dest || !dateFrom || !dateTo) {
-      errEl.textContent = 'From, To, and both dates are required.';
+    if (!query) {
+      errEl.textContent = 'Please describe what flight you want to track.';
       errEl.classList.remove('hidden');
       return;
     }
-
-    const query = `cheapest one-way flight from ${origin} to ${dest} between ${dateFrom} and ${dateTo}`;
 
     const btn = document.getElementById('sky-dry-run-btn');
     btn.disabled = true;
@@ -985,9 +961,9 @@
     skyConsoleLog('✓ Done.', 'text-gray-500');
 
     document.getElementById('sky-preview-value').textContent = '€' + data.value;
-    document.getElementById('sky-preview-route').textContent = `${origin} → ${dest} (${dateFrom} – ${dateTo})`;
+    document.getElementById('sky-preview-route').textContent = query;
 
-    document.getElementById('sky-sf-name').value = name || `${origin} → ${dest} Price`;
+    document.getElementById('sky-sf-name').value = name || 'Skyscanner Flight Price';
     document.getElementById('sky-sf-query').value = query;
     document.getElementById('sky-sf-interval').value = interval;
     document.getElementById('sky-sf-initial-value').value = data.value != null ? data.value : '';
