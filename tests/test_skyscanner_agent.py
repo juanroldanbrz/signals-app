@@ -1,15 +1,23 @@
+import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
-def _make_tool_call_json(tool: str, args: dict) -> str:
-    import json
-    return json.dumps({"tool": tool, "args": args})
+def _classifier_json(is_flight: bool) -> str:
+    return json.dumps({"is_flight_query": is_flight})
+
+
+def _make_tool_call_json(tool: str, origin: str = "", destination: str = "",
+                         date_from: str = "", date_to: str = "") -> str:
+    return json.dumps({
+        "tool": tool, "origin": origin, "destination": destination,
+        "date_from": date_from, "date_to": date_to, "value": None, "summary": "",
+    })
 
 
 def _make_done_json(value: float | None = None, summary: str = "") -> str:
-    import json
-    return json.dumps({"tool": "done", "value": value, "summary": summary})
+    return json.dumps({"tool": "done", "origin": "", "destination": "",
+                       "date_from": "", "date_to": "", "value": value, "summary": summary})
 
 
 @pytest.mark.asyncio
@@ -18,7 +26,7 @@ async def test_agent_rejects_non_flight_query():
     from src.crawling.site_agents.skyscanner.agent import SkyAgent
 
     with patch("src.crawling.site_agents.skyscanner.agent.gemini_text",
-               AsyncMock(return_value="no")):
+               AsyncMock(return_value=_classifier_json(False))):
         agent = SkyAgent()
         result = await agent.run(
             query="what is the capital of France?",
@@ -42,11 +50,8 @@ async def test_agent_run_returns_value_for_monitor_query():
                                 date="2026-04-01", price=89.0, currency="EUR")
 
     gemini_responses = [
-        "yes",  # classifier
-        _make_tool_call_json("search_flights", {
-            "origin": "LHR", "destination": "MAD",
-            "date_from": "2026-04-01", "date_to": "2026-04-01",
-        }),
+        _classifier_json(True),
+        _make_tool_call_json("search_flights", "LHR", "MAD", "2026-04-01", "2026-04-01"),
         _make_done_json(value=89.0),
     ]
     gemini_iter = iter(gemini_responses)
@@ -79,8 +84,8 @@ async def test_agent_run_stops_after_max_iterations():
     """If LLM never calls done, agent must stop after MAX_ITERATIONS."""
     from src.crawling.site_agents.skyscanner.agent import SkyAgent, MAX_ITERATIONS
 
-    # classifier returns yes, then always tool calls (never done)
-    responses = ["yes"] + [_make_tool_call_json("get_cheapest", {})] * (MAX_ITERATIONS + 2)
+    # classifier returns yes, then always unknown tool calls (never done)
+    responses = [_classifier_json(True)] + [_make_tool_call_json("get_cheapest")] * (MAX_ITERATIONS + 2)
 
     with patch("src.crawling.site_agents.skyscanner.agent.gemini_text",
                AsyncMock(side_effect=responses)), \
@@ -114,11 +119,8 @@ async def test_agent_loads_and_saves_persisted_memory():
                           date="2026-04-01", price=89.0, currency="EUR")
 
     gemini_responses = [
-        "yes",  # classifier
-        _make_tool_call_json("search_flights", {
-            "origin": "LHR", "destination": "MAD",
-            "date_from": "2026-04-01", "date_to": "2026-04-01",
-        }),
+        _classifier_json(True),
+        _make_tool_call_json("search_flights", "LHR", "MAD", "2026-04-01", "2026-04-01"),
         _make_done_json(value=89.0),
     ]
     gemini_iter = iter(gemini_responses)

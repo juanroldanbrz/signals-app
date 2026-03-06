@@ -1,27 +1,47 @@
-import json
+from pydantic import BaseModel as PydanticBaseModel
 from playwright.async_api import async_playwright
 from src.crawling.browser import get_page
 from src.crawling.site_agents.base import AgentResult, AgentTool, ProgressCallback
 from src.crawling.site_agents.skyscanner.memory import SkyMemory
-from src.crawling.site_agents.skyscanner.tools import (
-    get_cheapest, scan_date_range, search_flights,
-)
+from src.crawling.site_agents.skyscanner.tools import scan_date_range, search_flights
 from src.services.tracing import gemini_text
 
 MAX_ITERATIONS = 5
 
 
+class _FlightQueryCheck(PydanticBaseModel):
+    is_flight_query: bool
+
+
+class _ToolCall(PydanticBaseModel):
+    """Structured output for one agent step.
+
+    Fields used by search_flights / scan_date_range: origin, destination, date_from, date_to.
+    Fields used by done: value, summary.
+    """
+    tool: str
+    origin: str = ""
+    destination: str = ""
+    date_from: str = ""
+    date_to: str = ""
+    value: float | None = None
+    summary: str = ""
+
+
 async def _is_flight_query(query: str) -> bool:
     """Return True only if the query is about finding or tracking flight prices."""
-    raw = await gemini_text(
+    result = await gemini_text(
         name="sky_flight_classifier",
         prompt=(
             "Does this query ask about finding, searching, or tracking flight prices or routes? "
-            "Answer only 'yes' or 'no'.\n"
             f"Query: {query}"
         ),
+        response_format=_FlightQueryCheck,
     )
-    return raw.strip().lower().startswith("y")
+    try:
+        return _FlightQueryCheck.model_validate_json(result).is_flight_query
+    except Exception:
+        return False
 
 _TOOLS: list[AgentTool] = [
     AgentTool(
@@ -112,56 +132,54 @@ class SkyAgent:
                 f"You are a Skyscanner flight search agent. Your task: {query}\n\n"
                 f"Current session state:\n{memory.session_snapshot()}\n\n"
                 f"Available tools:\n{_tools_description()}\n\n"
-                f"Respond with ONLY a JSON object:\n"
-                f'  {{"tool": "<tool_name>", "args": {{...}}}}\n'
-                f"or to finish:\n"
-                f'  {{"tool": "done", "value": <number or null>, "summary": "<text>"}}\n'
+                f"Choose the next tool. For search_flights or scan_date_range set origin, "
+                f"destination, date_from, date_to (IATA codes, dates YYYY-MM-DD). "
+                f"When you have the answer, set tool=done with the numeric value."
             )
 
-            raw = await gemini_text(name="sky_agent_orchestrator", prompt=prompt)
+            raw = await gemini_text(
+                name="sky_agent_orchestrator",
+                prompt=prompt,
+                response_format=_ToolCall,
+            )
 
             try:
-                text = raw.strip()
-                if text.startswith("```"):
-                    text = text.split("```", 2)[1]
-                    if text.startswith("json"):
-                        text = text[4:]
-                    text = text.strip()
-                call = json.loads(text)
+                call = _ToolCall.model_validate_json(raw)
             except Exception:
                 await emit(f"Could not parse LLM response: {raw[:80]}")
                 continue
 
-            tool_name = call.get("tool")
+            tool_name = call.tool
 
             if tool_name == "done":
-                final_value = call.get("value")
-                final_summary = call.get("summary", "")
+                final_value = call.value
+                final_summary = call.summary
                 await emit(f"Agent done — value={final_value}")
                 break
 
-            args = call.get("args", {})
-            await emit(f"Calling tool: {tool_name}({args})")
+            await emit(f"Calling tool: {tool_name}(origin={call.origin}, dest={call.destination}, {call.date_from}→{call.date_to})")
 
             async with async_playwright() as pw:
                 browser, page = await get_page("https://www.skyscanner.com", pw)
                 try:
-                    if tool_name == "search_flights":
+                    if tool_name in ("search_flights", "scan_date_range"):
                         from src.crawling.site_agents.skyscanner.types import SearchParams
-                        params = SearchParams(**args)
-                        flights = await search_flights(page, params)
-                        memory.add_results(flights)
-                        memory.searches.append(params)
-                        await emit(f"Found {len(flights)} flights")
-
-                    elif tool_name == "scan_date_range":
-                        from src.crawling.site_agents.skyscanner.types import SearchParams
-                        params = SearchParams(**args)
-                        cal = await scan_date_range(page, params)
-                        memory.add_results(cal.entries)
-                        memory.searches.append(params)
-                        await emit(f"Scanned {len(cal.entries)} flights across date range")
-
+                        params = SearchParams(
+                            origin=call.origin,
+                            destination=call.destination,
+                            date_from=call.date_from,
+                            date_to=call.date_to,
+                        )
+                        if tool_name == "search_flights":
+                            flights = await search_flights(page, params)
+                            memory.add_results(flights)
+                            memory.searches.append(params)
+                            await emit(f"Found {len(flights)} flights")
+                        else:
+                            cal = await scan_date_range(page, params)
+                            memory.add_results(cal.entries)
+                            memory.searches.append(params)
+                            await emit(f"Scanned {len(cal.entries)} flights across date range")
                     else:
                         await emit(f"Unknown tool: {tool_name}")
                 finally:
