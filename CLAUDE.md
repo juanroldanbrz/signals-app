@@ -50,6 +50,19 @@ There is no DuckDuckGo or text-extraction fallback. All signals must have `sourc
 
 All intervals are stored as `interval_minutes` but displayed and input as hours only (1h, 2h, 6h, 12h, 24h).
 
+## LLM Calls — Structured Output
+
+**Always use `response_format=SomePydanticModel` when calling `gemini_text` or `gemini_vision`**, unless the response is truly free-form text (e.g. a narrative summary where any string is valid).
+
+Structured output:
+- Guarantees valid JSON — no markdown code fence stripping
+- Enforces exact field names — the model uses schema field names, not invented ones
+- Eliminates all `json.loads` / parse error recovery code
+
+Define a minimal Pydantic model for each LLM call's expected shape. Parse with `Model.model_validate_json(raw)`.
+
+Skip structured output only when: (1) the response is a freeform string (prose summary, yes/no classifier returning a bool field is still structured), or (2) the model/provider doesn't support it.
+
 ## Code Style
 
 - Python 3.14: use `X | None` not `Optional[X]`, use `list[T]` not `List[T]`
