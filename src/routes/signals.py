@@ -108,13 +108,20 @@ async def sky_preview(body: SkyPreviewRequest, current_user: User = Depends(get_
         await queue.put({"type": "progress", "msg": msg})
 
     async def run_task() -> None:
+        from src.config import settings as _settings
+        if not _settings.brightdata_wss:
+            await queue.put({"type": "done", "error": "⚠ BRIGHTDATA_WSS not configured. Flight search requires BrightData proxy."})
+            return
         try:
             agent = SkyAgent()
-            result = await agent.run(
-                query=body.query,
-                signal_id="preview",
-                persisted_memory={},
-                on_progress=on_progress,
+            result = await asyncio.wait_for(
+                agent.run(
+                    query=body.query,
+                    signal_id="preview",
+                    persisted_memory={},
+                    on_progress=on_progress,
+                ),
+                timeout=300.0,
             )
             if result.value is not None:
                 await queue.put({"type": "done", "value": result.value})
@@ -122,6 +129,8 @@ async def sky_preview(body: SkyPreviewRequest, current_user: User = Depends(get_
                 await queue.put({"type": "done", "error": result.digest_content})
             else:
                 await queue.put({"type": "done", "error": "No flight price found. Try being more specific (include route and dates)."})
+        except asyncio.TimeoutError:
+            await queue.put({"type": "done", "error": "⚠ Search timed out. Please try again."})
         except Exception as e:
             await queue.put({"type": "done", "error": f"Unexpected error: {str(e)[:200]}"})
 

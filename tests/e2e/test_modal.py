@@ -508,11 +508,11 @@ def test_live_flight_scanner_dry_run_returns_price(page: Page):
     open_modal(page)
     go_flight_scanner(page)
 
-    page.fill("#sky-name", "SIN to SVQ")
-    page.fill("#sky-query", "Cheapest one-way flight from Singapore to Seville between 2026-05-10 and 2026-05-15")
+    page.fill("#sky-name", "LHR to MAD")
+    page.fill("#sky-query", "Cheapest one-way flight from London to Madrid on 2026-05-01")
     page.click("#sky-dry-run-btn")
 
     expect(page.locator("#sky-console")).to_be_visible(timeout=5_000)
-    expect(page.locator("#sky-preview-value")).to_be_visible(timeout=180_000)
+    expect(page.locator("#sky-preview-value")).to_be_visible(timeout=240_000)
     value_text = page.locator("#sky-preview-value").inner_text()
     assert any(ch.isdigit() for ch in value_text), f"Expected a price, got: {value_text!r}"

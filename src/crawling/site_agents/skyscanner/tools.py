@@ -44,8 +44,9 @@ async def search_flights(
         await emit("  ⚠ page content threshold not reached")
 
     # Phase 2: React renders flight cards after its API calls complete — can be slow
+    # Use state="attached" (DOM presence only) — CSS blocking can prevent "visible" state
     try:
-        await page.wait_for_selector("[data-testid='ticket']", timeout=30_000)
+        await page.wait_for_selector("[data-testid='ticket']", state="attached", timeout=30_000)
         await emit("  flight results rendered")
     except Exception:
         await emit("  ⚠ ticket selector timed out (30s) — no flights rendered yet")

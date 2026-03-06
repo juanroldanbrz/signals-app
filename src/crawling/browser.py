@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 from src.config import settings
 
-_BLOCK_RESOURCE_TYPES = {"image", "font", "media", "stylesheet"}
+_BLOCK_RESOURCE_TYPES = {"image", "font", "media"}
 
 
 def _should_block(resource_type: str) -> bool:
